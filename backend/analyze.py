@@ -50,18 +50,29 @@ def analyze_video(video_path):
 
             ball = None
             people = []
+            detections_this_frame = []
 
             for box in results[0].boxes:
                 cls = int(box.cls[0])
                 label = model.names[cls]
+                confidence = float(box.conf[0])
                 x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
                 center_x = (x1 + x2) / 2
                 center_y = (y1 + y2) / 2
 
+                detections_this_frame.append(f"{label}({confidence:.2f})")
+
                 if label == 'sports ball':
                     ball = {'x': center_x, 'y': center_y}
+                    logger.info(f"Frame {frame_count}: Ball detected at ({center_x:.0f}, {center_y:.0f}), confidence: {confidence:.2f}")
                 elif label == 'person':
                     people.append({'x': center_x, 'y': center_y})
+
+            if processed_frames % 10 == 0 and detections_this_frame:
+                logger.info(f"Frame {frame_count}: Detected {len(detections_this_frame)} objects: {', '.join(detections_this_frame[:5])}")
+
+            if processed_frames % 10 == 0:
+                logger.info(f"Frame {frame_count}: Ball positions tracked: {len(ball_positions)}, People detected: {len(people)}")
 
             if ball:
                 ball_positions.append(ball)
@@ -69,12 +80,15 @@ def analyze_video(video_path):
                 if len(ball_positions) >= 4:
                     if is_shot_made(ball_positions[-4:]):
                         stats['points'] += 2
+                        logger.info(f"Frame {frame_count}: SHOT MADE! Points: {stats['points']}")
 
                     if is_block(ball_positions[-4:]):
                         stats['blocks'] += 1
+                        logger.info(f"Frame {frame_count}: BLOCK! Total blocks: {stats['blocks']}")
 
                     if is_rebound(ball_positions[-4:]):
                         stats['rebounds'] += 1
+                        logger.info(f"Frame {frame_count}: REBOUND! Total rebounds: {stats['rebounds']}")
 
                 if people:
                     current_holder = find_closest_person(ball, people)
@@ -82,9 +96,11 @@ def analyze_video(video_path):
                     if prev_ball_holder and current_holder != prev_ball_holder:
                         if is_steal(ball_positions[-2:] if len(ball_positions) >= 2 else []):
                             stats['steals'] += 1
+                            logger.info(f"Frame {frame_count}: STEAL! Total steals: {stats['steals']}")
 
                         if len(ball_positions) >= 3 and is_pass(ball_positions[-3:]):
                             stats['assists'] += 1
+                            logger.info(f"Frame {frame_count}: ASSIST! Total assists: {stats['assists']}")
 
                     prev_ball_holder = current_holder
 
