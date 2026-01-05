@@ -2,24 +2,106 @@ import cv2
 from ultralytics import YOLO
 import numpy as np
 import logging
+from transformers import VideoMAEImageProcessor, VideoMAEForVideoClassification
+import torch
 
 logger = logging.getLogger(__name__)
 
-model = YOLO('yolov8n.pt')
+yolo_model = YOLO('yolov8n.pt')
 
-def analyze_video(video_path):
-    logger.info(f"Opening video file: {video_path}")
+logger.info("Loading VideoMAE action recognition model...")
+try:
+    processor = VideoMAEImageProcessor.from_pretrained("MCG-NJU/videomae-base-finetuned-kinetics")
+    action_model = VideoMAEForVideoClassification.from_pretrained("MCG-NJU/videomae-base-finetuned-kinetics")
+    action_model.eval()
+    logger.info("VideoMAE model loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load VideoMAE: {e}")
+    processor = None
+    action_model = None
+
+
+def extract_video_clips(video_path, clip_duration=2.0, overlap=0.5, max_clips=30):
+    """Extract short clips from video for action recognition"""
+
     cap = cv2.VideoCapture(video_path)
-
     if not cap.isOpened():
-        logger.error(f"Failed to open video file: {video_path}")
-        raise ValueError(f"Could not open video file: {video_path}")
+        raise ValueError(f"Could not open video: {video_path}")
 
     fps = cap.get(cv2.CAP_PROP_FPS)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    duration = total_frames / fps if fps > 0 else 0
 
-    logger.info(f"Video info - FPS: {fps:.2f}, Total frames: {total_frames}, Duration: {duration:.2f}s")
+    logger.info(f"Video: {total_frames} frames at {fps:.2f} fps")
+
+    frames_per_clip = int(fps * clip_duration)
+    stride = int(frames_per_clip * (1 - overlap))
+
+    clips = []
+    frames_buffer = []
+    frame_count = 0
+
+    while cap.isOpened() and len(clips) < max_clips:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # bgr to rgb conversion
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frames_buffer.append(frame_rgb)
+        frame_count += 1
+
+        if len(frames_buffer) == frames_per_clip:
+            # enough frames for clip
+            clips.append((frame_count - frames_per_clip, np.array(frames_buffer)))
+            frames_buffer = frames_buffer[stride:] # move buffer forward by stride
+
+            if len(clips) % 10 == 0:
+                logger.info(f"Extracted {len(clips)} clips so far...")
+
+    cap.release()
+    logger.info(f"Total clips extracted: {len(clips)}")
+    return clips, fps
+
+
+def classify_action(frames):
+    """Classify action in video clip using VideoMAE"""
+    if processor is None or action_model is None:
+        return None, 0.0
+
+    try:
+        # sampe 16 frames uniformly from clip
+        indices = np.linspace(0, len(frames) - 1, 16, dtype=int)
+        sampled_frames = [frames[i] for i in indices]
+
+        inputs = processor(sampled_frames, return_tensors="pt") # processing frames
+
+        with torch.no_grad():
+            # getting predictions
+
+            outputs = action_model(**inputs)
+            logits = outputs.logits
+            probs = torch.nn.functional.softmax(logits, dim=-1)
+            predicted_class_idx = logits.argmax(-1).item()
+            confidence = probs[0][predicted_class_idx].item()
+
+        predicted_label = action_model.config.id2label[predicted_class_idx]
+        return predicted_label, confidence
+
+    except Exception as e:
+        logger.error(f"Error in action classification: {e}")
+        return None, 0.0
+
+
+def analyze_video(video_path):
+    logger.info(f"Opening video file: {video_path}")
+
+    try:
+        logger.info("Extracting video clips for action recognition...")
+        clips, fps = extract_video_clips(video_path, clip_duration=2.0, overlap=0.5)
+        logger.info(f"Extracted {len(clips)} clips from video (FPS: {fps:.2f})")
+    except Exception as e:
+        logger.error(f"Failed to extract video clips: {e}", exc_info=True)
+        raise
 
     stats = {
         'points': 0,
@@ -29,152 +111,88 @@ def analyze_video(video_path):
         'rebounds': 0
     }
 
-    ball_positions = []
-    prev_ball_holder = None
-    frame_count = 0
-    processed_frames = 0
+    basketball_actions = {
+        'shooting': ['shooting', 'throw', 'toss'],
+        'passing': ['passing', 'hand', 'throw'],
+        'dribbling': ['dribbling', 'bounce'],
+        'dunking': ['dunk', 'slam'],
+        'blocking': ['block', 'defend'],
+        'catching': ['catch', 'grab']
+    }
 
-    logger.info("Starting frame-by-frame analysis...")
+    detected_actions = []
+
+    for i, (start_frame, clip_frames) in enumerate(clips):
+        # clip processing
+
+        if i % 5 == 0:
+            logger.info(f"Processing clip {i+1}/{len(clips)} (frame {start_frame})")
+
+        action_label, confidence = classify_action(clip_frames)
+
+        if action_label and confidence > 0.3:
+            detected_actions.append({
+                'frame': start_frame,
+                'action': action_label,
+                'confidence': confidence
+            })
+
+            logger.info(f"Clip {i}: Detected '{action_label}' (confidence: {confidence:.2f})")
+
+            action_lower = action_label.lower()
+
+            # shots
+            if any(keyword in action_lower for keyword in basketball_actions['shooting'] + basketball_actions['dunking']):
+                if confidence > 0.5:
+                    stats['points'] += 2
+                    logger.info(f"  -> Counted as SHOT! Total points: {stats['points']}")
+
+            # assists
+            if any(keyword in action_lower for keyword in basketball_actions['passing']):
+                if confidence > 0.4:
+                    stats['assists'] += 1
+                    logger.info(f"  -> Counted as ASSIST! Total assists: {stats['assists']}")
+
+            # blocks
+            if any(keyword in action_lower for keyword in basketball_actions['blocking']):
+                if confidence > 0.45:
+                    stats['blocks'] += 1
+                    logger.info(f"  -> Counted as BLOCK! Total blocks: {stats['blocks']}")
+
+    logger.info("Running YOLO ball detection for additional analysis...")
+    ball_detections = detect_ball_with_yolo(video_path)
+    logger.info(f"YOLO detected ball in {ball_detections} frames")
+
+    logger.info(f"Video analysis complete. Detected {len(detected_actions)} action events")
+    logger.info(f"Final stats: Points={stats['points']}, Assists={stats['assists']}, Steals={stats['steals']}, Blocks={stats['blocks']}, Rebounds={stats['rebounds']}")
+
+    return stats
+
+
+def detect_ball_with_yolo(video_path):
+    """Use YOLO to detect basketball for validation"""
+    cap = cv2.VideoCapture(video_path)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    ball_count = 0
+    frame_count = 0
 
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
 
-        if frame_count % int(fps // 2) == 0:
-            processed_frames += 1
-            if processed_frames % 10 == 0:
-                logger.info(f"Processing frame {frame_count}/{total_frames} ({(frame_count/total_frames*100):.1f}%)")
-
-            results = model(frame, verbose=False)
-
-            ball = None
-            people = []
-            detections_this_frame = []
+        if frame_count % 10 == 0: # every 10th frame for speed
+            results = yolo_model(frame, verbose=False)
 
             for box in results[0].boxes:
                 cls = int(box.cls[0])
-                label = model.names[cls]
-                confidence = float(box.conf[0])
-                x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-                center_x = (x1 + x2) / 2
-                center_y = (y1 + y2) / 2
-
-                detections_this_frame.append(f"{label}({confidence:.2f})")
+                label = yolo_model.names[cls]
 
                 if label == 'sports ball':
-                    ball = {'x': center_x, 'y': center_y}
-                    logger.info(f"Frame {frame_count}: Ball detected at ({center_x:.0f}, {center_y:.0f}), confidence: {confidence:.2f}")
-                elif label == 'person':
-                    people.append({'x': center_x, 'y': center_y})
-
-            if processed_frames % 10 == 0 and detections_this_frame:
-                logger.info(f"Frame {frame_count}: Detected {len(detections_this_frame)} objects: {', '.join(detections_this_frame[:5])}")
-
-            if processed_frames % 10 == 0:
-                logger.info(f"Frame {frame_count}: Ball positions tracked: {len(ball_positions)}, People detected: {len(people)}")
-
-            if ball:
-                ball_positions.append(ball)
-
-                if len(ball_positions) >= 4:
-                    if is_shot_made(ball_positions[-4:]):
-                        stats['points'] += 2
-                        logger.info(f"Frame {frame_count}: SHOT MADE! Points: {stats['points']}")
-
-                    if is_block(ball_positions[-4:]):
-                        stats['blocks'] += 1
-                        logger.info(f"Frame {frame_count}: BLOCK! Total blocks: {stats['blocks']}")
-
-                    if is_rebound(ball_positions[-4:]):
-                        stats['rebounds'] += 1
-                        logger.info(f"Frame {frame_count}: REBOUND! Total rebounds: {stats['rebounds']}")
-
-                if people:
-                    current_holder = find_closest_person(ball, people)
-
-                    if prev_ball_holder and current_holder != prev_ball_holder:
-                        if is_steal(ball_positions[-2:] if len(ball_positions) >= 2 else []):
-                            stats['steals'] += 1
-                            logger.info(f"Frame {frame_count}: STEAL! Total steals: {stats['steals']}")
-
-                        if len(ball_positions) >= 3 and is_pass(ball_positions[-3:]):
-                            stats['assists'] += 1
-                            logger.info(f"Frame {frame_count}: ASSIST! Total assists: {stats['assists']}")
-
-                    prev_ball_holder = current_holder
+                    ball_count += 1
+                    break
 
         frame_count += 1
 
     cap.release()
-    logger.info(f"Video analysis complete. Processed {processed_frames} frames out of {total_frames} total frames")
-    logger.info(f"Final stats: Points={stats['points']}, Assists={stats['assists']}, Steals={stats['steals']}, Blocks={stats['blocks']}, Rebounds={stats['rebounds']}")
-    return stats
-
-def is_shot_made(positions):
-    if len(positions) < 4:
-        return False
-
-    y_vals = [p['y'] for p in positions]
-
-    if y_vals[0] > y_vals[1] and y_vals[1] < y_vals[2] and y_vals[2] < y_vals[3]:
-        if y_vals[1] < y_vals[0] - 50:
-            return True
-
-    return False
-
-def is_block(positions):
-    if len(positions) < 4:
-        return False
-
-    y_vals = [p['y'] for p in positions]
-
-    if y_vals[0] > y_vals[1] > y_vals[2] < y_vals[3]:
-        return True
-
-    return False
-
-def is_rebound(positions):
-    if len(positions) < 4:
-        return False
-
-    y_vals = [p['y'] for p in positions]
-
-    if y_vals[0] < y_vals[1] and y_vals[1] > y_vals[2] > y_vals[3]:
-        return True
-
-    return False
-
-def is_steal(positions):
-    if len(positions) < 2:
-        return False
-
-    x_vals = [p['x'] for p in positions]
-
-    if abs(x_vals[1] - x_vals[0]) > 100:
-        return True
-
-    return False
-
-def is_pass(positions):
-    if len(positions) < 3:
-        return False
-
-    x_vals = [p['x'] for p in positions]
-
-    if abs(x_vals[2] - x_vals[0]) > 150:
-        return True
-
-    return False
-
-def find_closest_person(ball, people):
-    min_dist = float('inf')
-    closest = None
-
-    for i, person in enumerate(people):
-        dist = ((ball['x'] - person['x'])**2 + (ball['y'] - person['y'])**2)**0.5
-        if dist < min_dist:
-            min_dist = dist
-            closest = i
-
-    return closest
+    return ball_count
