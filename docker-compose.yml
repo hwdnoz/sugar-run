@@ -23,8 +23,8 @@ services:
       - "5173:5173"
     volumes:
       - ./frontend:/app
-      - /app/node_modules
-    command: npm run dev -- --host
+      - frontend-node-modules:/app/node_modules
+    command: sh -c "cd /app && npm install && npm run dev -- --host"
     depends_on:
       - backend
     restart: unless-stopped
@@ -34,3 +34,6 @@ services:
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  frontend-node-modules:
