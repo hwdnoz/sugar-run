@@ -9,6 +9,8 @@ services:
     environment:
       - FLASK_ENV=development
       - FLASK_DEBUG=1
+    volumes:
+      - ./evaluations:/app/evaluations:ro
     restart: unless-stopped
     networks:
       - app-network

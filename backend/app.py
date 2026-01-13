@@ -59,6 +59,31 @@ def health():
     logger.info("Health check endpoint called")
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
 
+def load_evaluation_for_session(session_id):
+    """Load evaluation results for a session if they exist"""
+    eval_history_path = '/app/evaluations/results/evaluation_history.jsonl'
+
+    if not os.path.exists(eval_history_path):
+        logger.warning(f"Evaluation history file not found at {eval_history_path}")
+        return None
+
+    try:
+        with open(eval_history_path, 'r') as f:
+            # Read all lines and find matching session_id
+            for line in f:
+                try:
+                    eval_record = json.loads(line)
+                    if eval_record.get('session_id') == session_id:
+                        logger.info(f"Found evaluation for session {session_id}: {eval_record.get('score', {}).get('overall_score')}%")
+                        return eval_record.get('score')
+                except Exception as e:
+                    logger.error(f"Error parsing evaluation line: {e}")
+                    continue
+    except Exception as e:
+        logger.error(f"Error loading evaluation for {session_id}: {e}")
+
+    return None
+
 @app.route('/detections', methods=['GET'])
 def list_detections():
     """List all detection sessions with metadata"""
@@ -74,6 +99,12 @@ def list_detections():
             try:
                 with open(metadata_file, 'r') as f:
                     metadata = json.load(f)
+
+                    # Try to load evaluation score for this session
+                    eval_score = load_evaluation_for_session(metadata['session_id'])
+                    if eval_score:
+                        metadata['evaluation'] = eval_score
+
                     sessions.append(metadata)
             except Exception as e:
                 logger.error(f"Error reading {metadata_file}: {e}")

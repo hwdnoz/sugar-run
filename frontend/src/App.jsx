@@ -195,36 +195,115 @@ export default function App() {
               {/* Session List */}
               <div style={{ marginBottom: '30px' }}>
                 <h3>Recent Sessions</h3>
-                {sessions.map((session, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => selectSession(session.session_id)}
-                    style={{
-                      padding: '15px',
-                      marginBottom: '10px',
-                      border: selectedSession?.session_id === session.session_id ? '2px solid #2196F3' : '1px solid #e0e0e0',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      backgroundColor: selectedSession?.session_id === session.session_id ? '#f5f9ff' : '#fff',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
-                      Session: {session.session_id}
+                {sessions.map((session, idx) => {
+                  const getScoreColor = (score) => {
+                    if (score >= 90) return '#4caf50'  // Green
+                    if (score >= 70) return '#ff9800'  // Orange
+                    if (score >= 50) return '#ff5722'  // Red-Orange
+                    return '#f44336'  // Red
+                  }
+
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => selectSession(session.session_id)}
+                      style={{
+                        padding: '15px',
+                        marginBottom: '10px',
+                        border: selectedSession?.session_id === session.session_id ? '2px solid #2196F3' : '1px solid #e0e0e0',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        backgroundColor: selectedSession?.session_id === session.session_id ? '#f5f9ff' : '#fff',
+                        transition: 'all 0.2s',
+                        position: 'relative'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
+                            Session: {session.session_id}
+                          </div>
+                          <div style={{ fontSize: '14px', color: '#666' }}>
+                            Time: {new Date(session.timestamp).toLocaleString()} |
+                            Detections: {session.total_detections} |
+                            Points: {session.stats.points} |
+                            Assists: {session.stats.assists}
+                          </div>
+                        </div>
+                        {session.evaluation && (
+                          <div style={{
+                            padding: '8px 16px',
+                            borderRadius: '20px',
+                            backgroundColor: getScoreColor(session.evaluation.overall_score),
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '16px',
+                            marginLeft: '10px'
+                          }}>
+                            {session.evaluation.overall_score}%
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '14px', color: '#666' }}>
-                      Time: {new Date(session.timestamp).toLocaleString()} |
-                      Detections: {session.total_detections} |
-                      Points: {session.stats.points} |
-                      Assists: {session.stats.assists}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* Selected Session Details */}
               {selectedSession && (
                 <div>
+                  {/* Evaluation Score Card */}
+                  {selectedSession.evaluation && (
+                    <div style={{
+                      backgroundColor: '#f5f5f5',
+                      padding: '20px',
+                      borderRadius: '8px',
+                      marginBottom: '20px',
+                      border: '1px solid #e0e0e0'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '15px' }}>
+                        <h3 style={{ margin: 0, marginRight: '15px' }}>📊 Evaluation Metrics</h3>
+                        <span style={{
+                          padding: '8px 20px',
+                          borderRadius: '20px',
+                          backgroundColor: selectedSession.evaluation.overall_score >= 90 ? '#4caf50' :
+                                          selectedSession.evaluation.overall_score >= 70 ? '#ff9800' :
+                                          selectedSession.evaluation.overall_score >= 50 ? '#ff5722' : '#f44336',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: '18px'
+                        }}>
+                          {selectedSession.evaluation.overall_score}%
+                        </span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#666' }}>Precision</div>
+                          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{selectedSession.evaluation.precision}%</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#666' }}>Recall</div>
+                          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{selectedSession.evaluation.recall}%</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#666' }}>F1 Score</div>
+                          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{selectedSession.evaluation.f1_score}%</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#666' }}>Stats Accuracy</div>
+                          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{selectedSession.evaluation.stats_accuracy}%</div>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: '15px', fontSize: '14px', color: '#666' }}>
+                        <span style={{ color: '#4caf50', fontWeight: 'bold' }}>✓ {selectedSession.evaluation.true_positives} TP</span>
+                        {' | '}
+                        <span style={{ color: '#ff5722', fontWeight: 'bold' }}>✗ {selectedSession.evaluation.false_positives} FP</span>
+                        {' | '}
+                        <span style={{ color: '#ff9800', fontWeight: 'bold' }}>⚠ {selectedSession.evaluation.false_negatives} FN</span>
+                      </div>
+                    </div>
+                  )}
+
                   <h3>Detection Frames</h3>
                   <div style={{
                     display: 'grid',
