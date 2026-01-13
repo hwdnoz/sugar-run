@@ -7,6 +7,8 @@ export default function App() {
   const [currentView, setCurrentView] = useState('upload') // 'upload' or 'admin'
   const [sessions, setSessions] = useState([])
   const [selectedSession, setSelectedSession] = useState(null)
+  const [classifiers, setClassifiers] = useState([])
+  const [selectedClassifier, setSelectedClassifier] = useState('videomae')
 
   const handleUpload = async (e) => {
     const file = e.target.files[0]
@@ -14,6 +16,7 @@ export default function App() {
 
     const formData = new FormData()
     formData.append('video', file)
+    formData.append('classifier', selectedClassifier)
 
     setLoading(true)
     const res = await fetch('http://localhost:8080/analyze', {
@@ -23,6 +26,16 @@ export default function App() {
     const result = await res.json()
     setStats(result)
     setLoading(false)
+  }
+
+  const fetchClassifiers = async () => {
+    try {
+      const res = await fetch('http://localhost:8080/classifiers')
+      const data = await res.json()
+      setClassifiers(data.classifiers || [])
+    } catch (error) {
+      console.error('Error fetching classifiers:', error)
+    }
   }
 
   const fetchSessions = async () => {
@@ -44,6 +57,10 @@ export default function App() {
       console.error('Error fetching session:', error)
     }
   }
+
+  useEffect(() => {
+    fetchClassifiers()
+  }, [])
 
   useEffect(() => {
     if (currentView === 'admin') {
@@ -91,9 +108,36 @@ export default function App() {
       {/* Upload View */}
       {currentView === 'upload' && (
         <div>
+          {/* Classifier Selection */}
+          <div style={{ marginBottom: '20px' }}>
+            <label htmlFor="classifier" style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+              Classification Method:
+            </label>
+            <select
+              id="classifier"
+              value={selectedClassifier}
+              onChange={(e) => setSelectedClassifier(e.target.value)}
+              style={{
+                padding: '10px',
+                fontSize: '16px',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                width: '100%',
+                maxWidth: '500px',
+                cursor: 'pointer'
+              }}
+            >
+              {classifiers.map((classifier) => (
+                <option key={classifier.id} value={classifier.id}>
+                  {classifier.name} - {classifier.description}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <input type="file" accept="video/*" onChange={handleUpload} />
 
-      {loading && <p>Analyzing video with YOLO...</p>}
+      {loading && <p>Analyzing video with {classifiers.find(c => c.id === selectedClassifier)?.name || 'classifier'}...</p>}
 
       {videoUrl && (
         <div style={{ marginTop: '20px' }}>
@@ -103,6 +147,9 @@ export default function App() {
 
       {stats && (
         <div style={{ marginTop: '30px' }}>
+          <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+            <strong>Classifier Used:</strong> {stats.classifier_used || selectedClassifier}
+          </div>
           <h2>Box Score</h2>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -228,6 +275,9 @@ export default function App() {
                             Detections: {session.total_detections} |
                             Points: {session.stats.points} |
                             Assists: {session.stats.assists}
+                            {session.classifier_used && (
+                              <span> | Classifier: <strong>{session.classifier_used}</strong></span>
+                            )}
                           </div>
                         </div>
                         {session.evaluation && (
