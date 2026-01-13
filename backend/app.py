@@ -1,9 +1,11 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-from analyze import analyze_video
+from analyze import analyze_video, DETECTIONS_DIR
 import os
 import logging
 from datetime import datetime
+import json
+import glob
 
 # Configure logging
 logging.basicConfig(
@@ -56,6 +58,66 @@ def analyze():
 def health():
     logger.info("Health check endpoint called")
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+
+@app.route('/detections', methods=['GET'])
+def list_detections():
+    """List all detection sessions with metadata"""
+    try:
+        logger.info("Fetching all detection sessions")
+
+        # Find all metadata files
+        metadata_files = glob.glob(os.path.join(DETECTIONS_DIR, '*_metadata.json'))
+        metadata_files.sort(reverse=True)  # Most recent first
+
+        sessions = []
+        for metadata_file in metadata_files:
+            try:
+                with open(metadata_file, 'r') as f:
+                    metadata = json.load(f)
+                    sessions.append(metadata)
+            except Exception as e:
+                logger.error(f"Error reading {metadata_file}: {e}")
+                continue
+
+        logger.info(f"Found {len(sessions)} detection sessions")
+        return jsonify({'sessions': sessions})
+
+    except Exception as e:
+        logger.error(f"Error listing detections: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/detections/<session_id>', methods=['GET'])
+def get_detection_session(session_id):
+    """Get metadata for a specific detection session"""
+    try:
+        metadata_file = os.path.join(DETECTIONS_DIR, f"{session_id}_metadata.json")
+
+        if not os.path.exists(metadata_file):
+            return jsonify({'error': 'Session not found'}), 404
+
+        with open(metadata_file, 'r') as f:
+            metadata = json.load(f)
+
+        return jsonify(metadata)
+
+    except Exception as e:
+        logger.error(f"Error getting detection session: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/detections/image/<filename>', methods=['GET'])
+def get_detection_image(filename):
+    """Serve a detection frame image"""
+    try:
+        image_path = os.path.join(DETECTIONS_DIR, filename)
+
+        if not os.path.exists(image_path):
+            return jsonify({'error': 'Image not found'}), 404
+
+        return send_file(image_path, mimetype='image/jpeg')
+
+    except Exception as e:
+        logger.error(f"Error serving image: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     logger.info("Starting Basketball Tracker Backend on port 8080...")
