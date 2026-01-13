@@ -2,34 +2,62 @@ import cv2
 from ultralytics import YOLO
 import numpy as np
 import logging
-from transformers import VideoMAEImageProcessor, VideoMAEForVideoClassification
-import torch
 import os
 import json
 from datetime import datetime
 
+from classification import VideoMAEClassifier, YOLOBallTrackingClassifier
+import config
+
 logger = logging.getLogger(__name__)
 
 # Directory for storing detection frames
-DETECTIONS_DIR = '/tmp/detections'
+DETECTIONS_DIR = config.DETECTIONS_DIR
 os.makedirs(DETECTIONS_DIR, exist_ok=True)
 
-yolo_model = YOLO('yolov8n.pt')
+# Initialize YOLO for ball detection (still used separately)
+yolo_model = YOLO(config.YOLO_MODEL_PATH)
 
-logger.info("Loading VideoMAE action recognition model...")
-try:
-    processor = VideoMAEImageProcessor.from_pretrained("MCG-NJU/videomae-base-finetuned-kinetics")
-    action_model = VideoMAEForVideoClassification.from_pretrained("MCG-NJU/videomae-base-finetuned-kinetics")
-    action_model.eval()
-    logger.info("VideoMAE model loaded successfully")
-except Exception as e:
-    logger.error(f"Failed to load VideoMAE: {e}")
-    processor = None
-    action_model = None
+# Lazy-load classifiers on first use
+_videomae_classifier = None
+_yolo_classifier = None
 
 
-def extract_video_clips(video_path, clip_duration=2.0, overlap=0.5, max_clips=30):
+def get_classifier(classifier_type='videomae'):
+    """
+    Get classifier instance (lazy initialization)
+
+    Args:
+        classifier_type: 'videomae' or 'yolo'
+
+    Returns:
+        ActionClassifier instance
+    """
+    global _videomae_classifier, _yolo_classifier
+
+    if classifier_type == 'yolo':
+        if _yolo_classifier is None:
+            logger.info("Initializing YOLO Ball Tracking classifier...")
+            _yolo_classifier = YOLOBallTrackingClassifier(model_path=config.YOLO_MODEL_PATH)
+            _yolo_classifier.initialize()
+        return _yolo_classifier
+    else:  # default to videomae
+        if _videomae_classifier is None:
+            logger.info("Initializing VideoMAE classifier...")
+            _videomae_classifier = VideoMAEClassifier(model_name=config.VIDEOMAE_MODEL_NAME)
+            _videomae_classifier.initialize()
+        return _videomae_classifier
+
+
+def extract_video_clips(video_path, clip_duration=None, overlap=None, max_clips=None):
     """Extract short clips from video for action recognition"""
+    # Use config defaults if not specified
+    if clip_duration is None:
+        clip_duration = config.CLIP_DURATION
+    if overlap is None:
+        overlap = config.CLIP_OVERLAP
+    if max_clips is None:
+        max_clips = config.MAX_CLIPS
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -70,41 +98,18 @@ def extract_video_clips(video_path, clip_duration=2.0, overlap=0.5, max_clips=30
     return clips, fps
 
 
-def classify_action(frames):
-    """Classify action in video clip using VideoMAE"""
-    if processor is None or action_model is None:
-        return None, 0.0
-
-    try:
-        # sampe 16 frames uniformly from clip
-        indices = np.linspace(0, len(frames) - 1, 16, dtype=int)
-        sampled_frames = [frames[i] for i in indices]
-
-        inputs = processor(sampled_frames, return_tensors="pt") # processing frames
-
-        with torch.no_grad():
-            # getting predictions
-
-            outputs = action_model(**inputs)
-            logits = outputs.logits
-            probs = torch.nn.functional.softmax(logits, dim=-1)
-            predicted_class_idx = logits.argmax(-1).item()
-            confidence = probs[0][predicted_class_idx].item()
-
-        predicted_label = action_model.config.id2label[predicted_class_idx]
-        return predicted_label, confidence
-
-    except Exception as e:
-        logger.error(f"Error in action classification: {e}")
-        return None, 0.0
-
-
-def analyze_video(video_path):
+def analyze_video(video_path, classifier_type='videomae'):
     logger.info(f"Opening video file: {video_path}")
+    logger.info(f"Using classifier: {classifier_type}")
+
+    # Get the classifier
+    classifier = get_classifier(classifier_type)
+    if not classifier.is_ready():
+        raise RuntimeError(f"Classifier {classifier_type} failed to initialize")
 
     try:
         logger.info("Extracting video clips for action recognition...")
-        clips, fps = extract_video_clips(video_path, clip_duration=2.0, overlap=0.5)
+        clips, fps = extract_video_clips(video_path)
         logger.info(f"Extracted {len(clips)} clips from video (FPS: {fps:.2f})")
     except Exception as e:
         logger.error(f"Failed to extract video clips: {e}", exc_info=True)
@@ -118,14 +123,8 @@ def analyze_video(video_path):
         'rebounds': 0
     }
 
-    basketball_actions = {
-        'shooting': ['shooting', 'throw', 'toss'],
-        'passing': ['passing', 'hand', 'throw'],
-        'dribbling': ['dribbling', 'bounce'],
-        'dunking': ['dunk', 'slam'],
-        'blocking': ['block', 'defend'],
-        'catching': ['catch', 'grab']
-    }
+    # Get basketball action mappings from the classifier
+    basketball_actions = classifier.get_basketball_stats_mapping()
 
     detected_actions = []
 
@@ -138,9 +137,12 @@ def analyze_video(video_path):
         if i % 5 == 0:
             logger.info(f"Processing clip {i+1}/{len(clips)} (frame {start_frame})")
 
-        action_label, confidence = classify_action(clip_frames)
+        # Classify the action using the selected classifier
+        result = classifier.classify(clip_frames)
+        action_label = result.action
+        confidence = result.confidence
 
-        if action_label and confidence > 0.3:
+        if action_label and confidence > config.CONFIDENCE_THRESHOLD_DETECTION:
             timestamp = start_frame / fps
 
             # Save the middle frame from this clip for debugging
@@ -170,21 +172,21 @@ def analyze_video(video_path):
 
             # shots
             if any(keyword in action_lower for keyword in basketball_actions['shooting'] + basketball_actions['dunking']):
-                if confidence > 0.5:
+                if confidence > config.CONFIDENCE_THRESHOLD_SHOT:
                     stats['points'] += 2
                     classified_as.append('SHOT (+2 points)')
                     logger.info(f"  -> Counted as SHOT! Total points: {stats['points']}")
 
             # assists
             if any(keyword in action_lower for keyword in basketball_actions['passing']):
-                if confidence > 0.4:
+                if confidence > config.CONFIDENCE_THRESHOLD_ASSIST:
                     stats['assists'] += 1
                     classified_as.append('ASSIST (+1)')
                     logger.info(f"  -> Counted as ASSIST! Total assists: {stats['assists']}")
 
             # blocks
             if any(keyword in action_lower for keyword in basketball_actions['blocking']):
-                if confidence > 0.45:
+                if confidence > config.CONFIDENCE_THRESHOLD_BLOCK:
                     stats['blocks'] += 1
                     classified_as.append('BLOCK (+1)')
                     logger.info(f"  -> Counted as BLOCK! Total blocks: {stats['blocks']}")
@@ -211,8 +213,10 @@ def analyze_video(video_path):
         json.dump({
             'session_id': session_id,
             'timestamp': datetime.now().isoformat(),
-            'video_duration': round(len(clips) * 2.0 / fps, 2) if fps > 0 else 0,
+            'video_duration': round(len(clips) * config.CLIP_DURATION / fps, 2) if fps > 0 else 0,
             'total_detections': len(detection_details),
+            'classifier_used': classifier.name,
+            'classification_method': classifier_type,
             'stats': stats,
             'detections': detection_details
         }, f, indent=2)

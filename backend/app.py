@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from analyze import analyze_video, DETECTIONS_DIR
+import config
 import os
 import logging
 from datetime import datetime
@@ -32,6 +33,15 @@ def analyze():
         logger.info(f"Video filename: {video.filename}")
         logger.info(f"Video content type: {video.content_type}")
 
+        # Get classification method from request (defaults to videomae)
+        classifier_type = request.form.get('classifier', 'videomae')
+        logger.info(f"Requested classifier: {classifier_type}")
+
+        # Validate classifier type
+        if classifier_type not in ['videomae', 'yolo']:
+            logger.error(f"Invalid classifier type: {classifier_type}")
+            return jsonify({'error': f'Invalid classifier type: {classifier_type}. Must be "videomae" or "yolo"'}), 400
+
         video_path = '/tmp/upload.mp4'
         logger.info(f"Saving video to: {video_path}")
         video.save(video_path)
@@ -39,8 +49,8 @@ def analyze():
         file_size = os.path.getsize(video_path)
         logger.info(f"Video saved successfully. Size: {file_size / (1024*1024):.2f} MB")
 
-        logger.info("Starting video analysis with YOLO...")
-        result = analyze_video(video_path)
+        logger.info("Starting video analysis...")
+        result = analyze_video(video_path, classifier_type=classifier_type)
 
         logger.info(f"Analysis complete. Results: {result}")
         logger.info("Cleaning up temporary file...")
@@ -58,6 +68,28 @@ def analyze():
 def health():
     logger.info("Health check endpoint called")
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+
+@app.route('/classifiers', methods=['GET'])
+def list_classifiers():
+    """List available classification methods"""
+    try:
+        return jsonify({
+            'classifiers': [
+                {
+                    'id': 'videomae',
+                    'name': 'VideoMAE',
+                    'description': 'Video Masked Autoencoder for action recognition using pre-trained Kinetics model'
+                },
+                {
+                    'id': 'yolo',
+                    'name': 'YOLO Ball Tracking',
+                    'description': 'Tracks basketball position and infers actions from ball trajectory patterns'
+                }
+            ]
+        })
+    except Exception as e:
+        logger.error(f"Error listing classifiers: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 def load_evaluation_for_session(session_id):
     """Load evaluation results for a session if they exist"""
