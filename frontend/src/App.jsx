@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import config from './config'
 
 export default function App() {
   const [stats, setStats] = useState(null)
@@ -19,7 +20,7 @@ export default function App() {
     formData.append('classifier', selectedClassifier)
 
     setLoading(true)
-    const res = await fetch('http://localhost:8080/analyze', {
+    const res = await fetch(`${config.API_BASE_URL}/analyze`, {
       method: 'POST',
       body: formData
     })
@@ -30,7 +31,7 @@ export default function App() {
 
   const fetchClassifiers = async () => {
     try {
-      const res = await fetch('http://localhost:8080/classifiers')
+      const res = await fetch(`${config.API_BASE_URL}/classifiers`)
       const data = await res.json()
       setClassifiers(data.classifiers || [])
     } catch (error) {
@@ -40,7 +41,7 @@ export default function App() {
 
   const fetchSessions = async () => {
     try {
-      const res = await fetch('http://localhost:8080/detections')
+      const res = await fetch(`${config.API_BASE_URL}/detections`)
       const data = await res.json()
       setSessions(data.sessions || [])
     } catch (error) {
@@ -50,7 +51,7 @@ export default function App() {
 
   const selectSession = async (sessionId) => {
     try {
-      const res = await fetch(`http://localhost:8080/detections/${sessionId}`)
+      const res = await fetch(`${config.API_BASE_URL}/detections/${sessionId}`)
       const data = await res.json()
       setSelectedSession(data)
     } catch (error) {
@@ -376,7 +377,7 @@ export default function App() {
                       >
                         {/* Frame Image */}
                         <img
-                          src={`http://localhost:8080/detections/image/${det.frame_image}`}
+                          src={`${config.API_BASE_URL}/detections/image/${det.frame_image}`}
                           alt={`Detection at ${det.timestamp}s`}
                           style={{ width: '100%', height: 'auto', display: 'block' }}
                         />
