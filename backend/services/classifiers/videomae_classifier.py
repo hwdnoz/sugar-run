@@ -15,10 +15,10 @@ class VideoMAEClassifier(ActionClassifier):
     """Action classifier using VideoMAE model"""
 
     def __init__(self, model_name: str = "MCG-NJU/videomae-base-finetuned-kinetics"):
+        super().__init__()
         self.model_name = model_name
         self.processor: Optional[VideoMAEImageProcessor] = None
         self.model: Optional[VideoMAEForVideoClassification] = None
-        self._ready = False
 
     @property
     def name(self) -> str:
@@ -42,8 +42,8 @@ class VideoMAEClassifier(ActionClassifier):
             return False
 
     def is_ready(self) -> bool:
-        """Check if model is ready"""
-        return self._ready and self.processor is not None and self.model is not None
+        """Check if model is ready - includes model-specific checks"""
+        return super().is_ready() and self.processor is not None and self.model is not None
 
     def classify(self, frames: np.ndarray) -> ClassificationResult:
         """

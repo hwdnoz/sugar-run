@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-"""
-Evaluation Tool for Basketball Action Recognition
-
-Compares detection results against ground truth and provides accuracy scores.
-"""
+"""Evaluation Tool for Basketball Action Recognition"""
 
 import json
 import os
-import sys
+import traceback
 from datetime import datetime
 from typing import Dict, List, Tuple
+
+from utils import storage
 
 
 class EvaluationResult:
@@ -42,37 +40,20 @@ class EvaluationResult:
 
 
 def load_ground_truth(video_name: str) -> Dict:
-    """Load ground truth for a video"""
-    gt_path = f"ground_truth/{video_name.replace('.mp4', '')}.json"
-
+    """Load expected results for evaluation"""
+    gt_path = "/app/services/expected_results.json"
     if not os.path.exists(gt_path):
         raise FileNotFoundError(f"Ground truth not found: {gt_path}")
-
     with open(gt_path, 'r') as f:
         return json.load(f)
 
 
 def load_session_results(session_id: str) -> Dict:
-    """Load detection results from a session"""
-    # Check if running from backend container
-    if os.path.exists('/tmp/detections'):
-        detections_dir = '/tmp/detections'
-    else:
-        # Running from host, need to get from container
-        import subprocess
-        result = subprocess.run(
-            ['docker', 'cp', f'basketball-tracker-backend:/tmp/detections/{session_id}_metadata.json', '/tmp/'],
-            capture_output=True
-        )
-        detections_dir = '/tmp'
-
-    metadata_path = os.path.join(detections_dir, f'{session_id}_metadata.json')
-
-    if not os.path.exists(metadata_path):
-        raise FileNotFoundError(f"Session metadata not found: {metadata_path}")
-
-    with open(metadata_path, 'r') as f:
-        return json.load(f)
+    """Load detection results from session storage"""
+    session = storage.get_session(session_id)
+    if not session:
+        raise FileNotFoundError(f"Session not found: {session_id}")
+    return session
 
 
 def match_detection(expected: Dict, detections: List[Dict]) -> Tuple[bool, Dict]:
@@ -242,27 +223,21 @@ def print_evaluation_report(ground_truth: Dict, session_results: Dict,
 
 def save_evaluation_results(ground_truth: Dict, session_results: Dict,
                             result: EvaluationResult, score: Dict):
-    """Save evaluation results to file"""
-
-    results_file = "results/evaluation_history.jsonl"
-
-    evaluation_record = {
-        'timestamp': datetime.now().isoformat(),
+    """Add evaluation to session"""
+    eval_data = {
+        'evaluated_at': datetime.now().isoformat(),
         'video_name': ground_truth['video_name'],
-        'session_id': session_results['session_id'],
-        'score': score,
-        'true_positives': result.true_positives,
-        'false_positives': result.false_positives,
-        'false_negatives': result.false_negatives,
-        'stats_correct': result.stats_correct,
-        'stats_errors': result.stats_errors
+        'overall_score': score['overall_score'],
+        'precision': score['precision'],
+        'recall': score['recall'],
+        'f1_score': score['f1_score'],
+        'stats_accuracy': score['stats_accuracy'],
+        'true_positives': score['true_positives'],
+        'false_positives': score['false_positives'],
+        'false_negatives': score['false_negatives']
     }
-
-    # Append to JSONL file
-    with open(results_file, 'a') as f:
-        f.write(json.dumps(evaluation_record) + '\n')
-
-    print(f"📁 Results saved to: {results_file}")
+    storage.update_session(session_results['session_id'], {'evaluation': eval_data})
+    print(f"📁 Evaluation added to session {session_results['session_id']}")
 
 
 def main():
@@ -298,9 +273,75 @@ def main():
 
     except Exception as e:
         print(f"\n❌ Error: {e}")
-        import traceback
         traceback.print_exc()
         sys.exit(1)
+
+
+def run_evaluation(video_name: str, session_id: str, silent: bool = False) -> Dict:
+    """
+    Programmatic evaluation function that can be called from other modules.
+
+    Args:
+        video_name: Name of the video file (e.g., 'trim.mp4')
+        session_id: Session ID of the detection results
+        silent: If True, suppress print statements
+
+    Returns:
+        Dictionary containing the score and evaluation results, or None if evaluation cannot be performed
+    """
+    try:
+        # Load data
+        if not silent:
+            print(f"\n🔍 Loading ground truth for {video_name}...")
+        ground_truth = load_ground_truth(video_name)
+
+        if not silent:
+            print(f"📊 Loading session results for {session_id}...")
+        session_results = load_session_results(session_id)
+
+        # Evaluate
+        if not silent:
+            print("⚙️  Evaluating...")
+        result = evaluate_detections(ground_truth, session_results)
+        score = calculate_score(result, ground_truth)
+
+        # Report
+        if not silent:
+            print_evaluation_report(ground_truth, session_results, result, score)
+
+        # Save
+        save_evaluation_results(ground_truth, session_results, result, score)
+        if not silent:
+            print(f"✅ Evaluation complete! Overall score: {score['overall_score']}%")
+
+        return {
+            'success': True,
+            'score': score,
+            'true_positives': result.true_positives,
+            'false_positives': result.false_positives,
+            'false_negatives': result.false_negatives,
+            'stats_correct': result.stats_correct,
+            'stats_errors': result.stats_errors
+        }
+
+    except FileNotFoundError as e:
+        if not silent:
+            print(f"⚠️  Skipping evaluation: {e}")
+        return {
+            'success': False,
+            'error': 'no_ground_truth',
+            'message': str(e)
+        }
+    except Exception as e:
+        if not silent:
+            print(f"\n❌ Error during evaluation: {e}")
+            import traceback
+            traceback.print_exc()
+        return {
+            'success': False,
+            'error': 'evaluation_failed',
+            'message': str(e)
+        }
 
 
 if __name__ == '__main__':

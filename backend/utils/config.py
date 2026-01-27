@@ -1,4 +1,4 @@
-"""Configuration for basketball tracker backend"""
+"""Configuration settings for basketball tracker backend"""
 
 import os
 
@@ -6,15 +6,15 @@ import os
 VIDEOMAE_MODEL_NAME = os.environ.get('VIDEOMAE_MODEL_NAME', 'MCG-NJU/videomae-base-finetuned-kinetics')
 
 # YOLO settings
-YOLO_MODEL_PATH = os.environ.get('YOLO_MODEL_PATH', 'yolov8n.pt')
+YOLO_MODEL_PATH = os.environ.get('YOLO_MODEL_PATH', '/app/services/classifiers/yolov8n.pt')
 
 # Video processing settings
 CLIP_DURATION = float(os.environ.get('CLIP_DURATION', '2.0'))  # seconds
 CLIP_OVERLAP = float(os.environ.get('CLIP_OVERLAP', '0.5'))  # 0.0 to 1.0
 MAX_CLIPS = int(os.environ.get('MAX_CLIPS', '30'))
 
-# Detection settings
-DETECTIONS_DIR = os.environ.get('DETECTIONS_DIR', '/tmp/detections')
+# Evaluation settings
+ENABLE_EVALUATION = os.environ.get('ENABLE_EVALUATION', 'true').lower() == 'true'
 
 # Confidence thresholds
 CONFIDENCE_THRESHOLD_SHOT = float(os.environ.get('CONFIDENCE_THRESHOLD_SHOT', '0.5'))

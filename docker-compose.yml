@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build: ./backend
@@ -10,7 +8,7 @@ services:
       - FLASK_ENV=development
       - FLASK_DEBUG=1
     volumes:
-      - ./evaluations:/app/evaluations:ro
+      - ./data:/app/data
     restart: unless-stopped
     networks:
       - app-network

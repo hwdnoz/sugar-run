@@ -1,12 +1,11 @@
+"""Flask app - HTTP routes only"""
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-from analyze import analyze_video, DETECTIONS_DIR
-import config
-import os
 import logging
 from datetime import datetime
-import json
-import glob
+
+from services import request_service
+from utils import storage
 
 # Configure logging
 logging.basicConfig(
@@ -21,167 +20,76 @@ CORS(app)
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
+    """Upload and analyze video"""
     try:
-        logger.info("=" * 60)
-        logger.info("Received video upload request")
-
         if 'video' not in request.files:
-            logger.error("No video file in request")
             return jsonify({'error': 'No video file provided'}), 400
 
         video = request.files['video']
-        logger.info(f"Video filename: {video.filename}")
-        logger.info(f"Video content type: {video.content_type}")
-
-        # Get classification method from request (defaults to videomae)
         classifier_type = request.form.get('classifier', 'videomae')
-        logger.info(f"Requested classifier: {classifier_type}")
 
-        # Validate classifier type
-        if classifier_type not in ['videomae', 'yolo']:
-            logger.error(f"Invalid classifier type: {classifier_type}")
-            return jsonify({'error': f'Invalid classifier type: {classifier_type}. Must be "videomae" or "yolo"'}), 400
-
-        video_path = '/tmp/upload.mp4'
-        logger.info(f"Saving video to: {video_path}")
-        video.save(video_path)
-
-        file_size = os.path.getsize(video_path)
-        logger.info(f"Video saved successfully. Size: {file_size / (1024*1024):.2f} MB")
-
-        logger.info("Starting video analysis...")
-        result = analyze_video(video_path, classifier_type=classifier_type)
-
-        logger.info(f"Analysis complete. Results: {result}")
-        logger.info("Cleaning up temporary file...")
-        os.remove(video_path)
-        logger.info("Temporary file removed")
-        logger.info("=" * 60)
-
+        result = request_service.process_video_upload(
+            video,
+            video.filename,
+            classifier_type
+        )
         return jsonify(result)
 
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
-        logger.error(f"Error processing video: {str(e)}", exc_info=True)
+        logger.error(f"Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
 def health():
-    logger.info("Health check endpoint called")
+    """Health check"""
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
 
 @app.route('/classifiers', methods=['GET'])
 def list_classifiers():
-    """List available classification methods"""
+    """List available classifiers"""
     try:
-        return jsonify({
-            'classifiers': [
-                {
-                    'id': 'videomae',
-                    'name': 'VideoMAE',
-                    'description': 'Video Masked Autoencoder for action recognition using pre-trained Kinetics model'
-                },
-                {
-                    'id': 'yolo',
-                    'name': 'YOLO Ball Tracking',
-                    'description': 'Tracks basketball position and infers actions from ball trajectory patterns'
-                }
-            ]
-        })
+        classifiers = request_service.get_classifiers()
+        return jsonify({'classifiers': classifiers})
     except Exception as e:
-        logger.error(f"Error listing classifiers: {str(e)}", exc_info=True)
+        logger.error(f"Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
-
-def load_evaluation_for_session(session_id):
-    """Load evaluation results for a session if they exist"""
-    eval_history_path = '/app/evaluations/results/evaluation_history.jsonl'
-
-    if not os.path.exists(eval_history_path):
-        logger.warning(f"Evaluation history file not found at {eval_history_path}")
-        return None
-
-    try:
-        with open(eval_history_path, 'r') as f:
-            # Read all lines and find matching session_id
-            for line in f:
-                try:
-                    eval_record = json.loads(line)
-                    if eval_record.get('session_id') == session_id:
-                        logger.info(f"Found evaluation for session {session_id}: {eval_record.get('score', {}).get('overall_score')}%")
-                        return eval_record.get('score')
-                except Exception as e:
-                    logger.error(f"Error parsing evaluation line: {e}")
-                    continue
-    except Exception as e:
-        logger.error(f"Error loading evaluation for {session_id}: {e}")
-
-    return None
 
 @app.route('/detections', methods=['GET'])
 def list_detections():
-    """List all detection sessions with metadata"""
+    """List all sessions"""
     try:
-        logger.info("Fetching all detection sessions")
-
-        # Find all metadata files
-        metadata_files = glob.glob(os.path.join(DETECTIONS_DIR, '*_metadata.json'))
-        metadata_files.sort(reverse=True)  # Most recent first
-
-        sessions = []
-        for metadata_file in metadata_files:
-            try:
-                with open(metadata_file, 'r') as f:
-                    metadata = json.load(f)
-
-                    # Try to load evaluation score for this session
-                    eval_score = load_evaluation_for_session(metadata['session_id'])
-                    if eval_score:
-                        metadata['evaluation'] = eval_score
-
-                    sessions.append(metadata)
-            except Exception as e:
-                logger.error(f"Error reading {metadata_file}: {e}")
-                continue
-
-        logger.info(f"Found {len(sessions)} detection sessions")
+        sessions = storage.list_sessions()
         return jsonify({'sessions': sessions})
-
     except Exception as e:
-        logger.error(f"Error listing detections: {str(e)}", exc_info=True)
+        logger.error(f"Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/detections/<session_id>', methods=['GET'])
 def get_detection_session(session_id):
-    """Get metadata for a specific detection session"""
+    """Get specific session"""
     try:
-        metadata_file = os.path.join(DETECTIONS_DIR, f"{session_id}_metadata.json")
-
-        if not os.path.exists(metadata_file):
+        session = storage.get_session(session_id)
+        if not session:
             return jsonify({'error': 'Session not found'}), 404
-
-        with open(metadata_file, 'r') as f:
-            metadata = json.load(f)
-
-        return jsonify(metadata)
-
+        return jsonify(session)
     except Exception as e:
-        logger.error(f"Error getting detection session: {str(e)}", exc_info=True)
+        logger.error(f"Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/detections/image/<filename>', methods=['GET'])
 def get_detection_image(filename):
-    """Serve a detection frame image"""
+    """Serve frame image"""
     try:
-        image_path = os.path.join(DETECTIONS_DIR, filename)
-
-        if not os.path.exists(image_path):
-            return jsonify({'error': 'Image not found'}), 404
-
+        image_path = storage.get_frame_path(filename)
         return send_file(image_path, mimetype='image/jpeg')
-
+    except FileNotFoundError:
+        return jsonify({'error': 'Image not found'}), 404
     except Exception as e:
-        logger.error(f"Error serving image: {str(e)}", exc_info=True)
+        logger.error(f"Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    logger.info("Starting Basketball Tracker Backend on port 8080...")
+    logger.info("Starting Basketball Tracker on port 8080...")
     app.run(host='0.0.0.0', port=8080, debug=True)

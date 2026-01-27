@@ -24,9 +24,9 @@ class YOLOBallTrackingClassifier(ActionClassifier):
     """
 
     def __init__(self, model_path: str = 'yolov8n.pt'):
+        super().__init__()
         self.model_path = model_path
         self.model: Optional[YOLO] = None
-        self._ready = False
 
     @property
     def name(self) -> str:
@@ -47,8 +47,8 @@ class YOLOBallTrackingClassifier(ActionClassifier):
             return False
 
     def is_ready(self) -> bool:
-        """Check if model is ready"""
-        return self._ready and self.model is not None
+        """Check if model is ready - includes model-specific checks"""
+        return super().is_ready() and self.model is not None
 
     def _detect_ball_positions(self, frames: np.ndarray) -> List[Tuple[float, float]]:
         """

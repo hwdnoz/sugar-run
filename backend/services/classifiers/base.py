@@ -21,6 +21,10 @@ class ClassificationResult:
 class ActionClassifier(ABC):
     """Abstract base class for action classification strategies"""
 
+    def __init__(self):
+        """Initialize classifier with ready state"""
+        self._ready = False
+
     @abstractmethod
     def classify(self, frames: np.ndarray) -> ClassificationResult:
         """
@@ -44,7 +48,6 @@ class ActionClassifier(ABC):
         """
         pass
 
-    @abstractmethod
     def is_ready(self) -> bool:
         """
         Check if classifier is ready to use
@@ -52,7 +55,7 @@ class ActionClassifier(ABC):
         Returns:
             True if ready, False otherwise
         """
-        pass
+        return self._ready
 
     @property
     @abstractmethod
