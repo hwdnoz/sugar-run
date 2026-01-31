@@ -12,38 +12,38 @@ VALID_CLASSIFIERS = ['videomae', 'yolo', 'timesformer', 'x3d', 'clip', 'vivit', 
 CLASSIFIER_INFO = [
     {
         'id': 'videomae',
-        'name': 'VideoMAE',
-        'description': 'Video Masked Autoencoder for action recognition using pre-trained Kinetics model'
+        'name': 'Meta VideoMAE',
+        'description': 'Video Masked Autoencoder'
     },
     {
         'id': 'yolo',
-        'name': 'YOLO Ball Tracking',
-        'description': 'Tracks basketball position and infers actions from ball trajectory patterns'
+        'name': 'Ultralytics YOLOv8',
+        'description': 'Ball tracking & trajectory inference'
     },
     {
         'id': 'timesformer',
-        'name': 'TimesFormer',
-        'description': 'Space-time attention transformer for video classification'
+        'name': 'Meta TimesFormer',
+        'description': 'Space-time attention transformer'
     },
     {
         'id': 'x3d',
-        'name': 'X3D',
-        'description': 'Efficient 3D CNN for mobile/edge video recognition'
+        'name': 'Meta X3D',
+        'description': 'Efficient 3D CNN'
     },
     {
         'id': 'clip',
-        'name': 'CLIP Zero-Shot',
-        'description': 'Zero-shot classification using vision-language model'
+        'name': 'OpenAI CLIP',
+        'description': 'Zero-shot vision-language model'
     },
     {
         'id': 'vivit',
-        'name': 'ViViT',
-        'description': 'Video Vision Transformer with temporal modeling'
+        'name': 'Google ViViT',
+        'description': 'Video Vision Transformer'
     },
     {
         'id': 'slowfast',
-        'name': 'SlowFast',
-        'description': 'Dual-pathway network for spatial and temporal recognition'
+        'name': 'Meta SlowFast',
+        'description': 'Dual-pathway network'
     }
 ]
 
