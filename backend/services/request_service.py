@@ -7,7 +7,7 @@ from utils import config
 
 logger = logging.getLogger(__name__)
 
-VALID_CLASSIFIERS = ['videomae', 'yolo']
+VALID_CLASSIFIERS = ['videomae', 'yolo', 'timesformer', 'x3d', 'clip', 'vivit', 'slowfast']
 
 CLASSIFIER_INFO = [
     {
@@ -19,6 +19,31 @@ CLASSIFIER_INFO = [
         'id': 'yolo',
         'name': 'YOLO Ball Tracking',
         'description': 'Tracks basketball position and infers actions from ball trajectory patterns'
+    },
+    {
+        'id': 'timesformer',
+        'name': 'TimesFormer',
+        'description': 'Space-time attention transformer for video classification'
+    },
+    {
+        'id': 'x3d',
+        'name': 'X3D',
+        'description': 'Efficient 3D CNN for mobile/edge video recognition'
+    },
+    {
+        'id': 'clip',
+        'name': 'CLIP Zero-Shot',
+        'description': 'Zero-shot classification using vision-language model'
+    },
+    {
+        'id': 'vivit',
+        'name': 'ViViT',
+        'description': 'Video Vision Transformer with temporal modeling'
+    },
+    {
+        'id': 'slowfast',
+        'name': 'SlowFast',
+        'description': 'Dual-pathway network for spatial and temporal recognition'
     }
 ]
 
