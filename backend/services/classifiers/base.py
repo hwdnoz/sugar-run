@@ -2,8 +2,11 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Type, Callable
+import logging
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -79,3 +82,102 @@ class ActionClassifier(ABC):
             'blocking': ['block', 'defend'],
             'catching': ['catch', 'grab']
         }
+
+
+class ClassifierRegistry:
+    """
+    Registry - stores mapping of classifier names to their factory functions.
+
+    Responsibility: Know what classifiers exist and how to construct them.
+    Does NOT create instances - that's the factory's job.
+    """
+
+    _registry: Dict[str, Callable[[], 'ActionClassifier']] = {}
+
+    @classmethod
+    def register(cls, name: str, factory: Callable[[], 'ActionClassifier']) -> None:
+        """
+        Register a classifier factory function.
+
+        Args:
+            name: Unique identifier for the classifier (e.g., 'videomae', 'yolo')
+            factory: Callable that returns a new classifier instance
+        """
+        cls._registry[name] = factory
+        logger.debug(f"Registered classifier: {name}")
+
+    @classmethod
+    def get(cls, name: str) -> Callable[[], 'ActionClassifier']:
+        """
+        Get the factory function for a classifier type.
+
+        Args:
+            name: Classifier identifier
+
+        Returns:
+            Factory function that creates the classifier
+
+        Raises:
+            ValueError: If classifier type is not registered
+        """
+        if name not in cls._registry:
+            available = ', '.join(cls._registry.keys())
+            raise ValueError(f"Unknown classifier: '{name}'. Available: {available}")
+        return cls._registry[name]
+
+    @classmethod
+    def available(cls) -> List[str]:
+        """Return list of registered classifier names."""
+        return list(cls._registry.keys())
+
+    @classmethod
+    def is_registered(cls, name: str) -> bool:
+        """Check if a classifier is registered."""
+        return name in cls._registry
+
+
+class ClassifierFactory:
+    """
+    Factory - creates and caches classifier instances.
+
+    Responsibility: Create classifier instances on demand, with lazy initialization and caching.
+    Uses ClassifierRegistry to look up how to construct each type.
+    """
+
+    _instances: Dict[str, 'ActionClassifier'] = {}
+    _default: str = 'videomae'
+
+    @classmethod
+    def create(cls, classifier_type: Optional[str] = None) -> 'ActionClassifier':
+        """
+        Create or return cached classifier instance.
+
+        Args:
+            classifier_type: Type of classifier to create (defaults to 'videomae')
+
+        Returns:
+            Initialized classifier instance
+        """
+        if classifier_type is None:
+            classifier_type = cls._default
+
+        if classifier_type not in cls._instances:
+            logger.info(f"Initializing {classifier_type} classifier...")
+            factory_fn = ClassifierRegistry.get(classifier_type)
+            instance = factory_fn()
+            instance.initialize()
+            cls._instances[classifier_type] = instance
+
+        return cls._instances[classifier_type]
+
+    @classmethod
+    def set_default(cls, name: str) -> None:
+        """Set the default classifier type."""
+        if not ClassifierRegistry.is_registered(name):
+            raise ValueError(f"Cannot set default to unregistered classifier: {name}")
+        cls._default = name
+
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clear cached instances (useful for testing)."""
+        cls._instances.clear()
