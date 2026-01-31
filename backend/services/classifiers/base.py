@@ -84,6 +84,21 @@ class ActionClassifier(ABC):
         }
 
 
+def register_classifier(name: str):
+    """
+    Decorator to register a classifier class with the registry.
+
+    Usage:
+        @register_classifier('videomae')
+        class VideoMAEClassifier(ActionClassifier):
+            ...
+    """
+    def decorator(cls: Type['ActionClassifier']) -> Type['ActionClassifier']:
+        ClassifierRegistry.register(name, cls)
+        return cls
+    return decorator
+
+
 class ClassifierRegistry:
     """
     Registry - stores mapping of classifier names to their factory functions.

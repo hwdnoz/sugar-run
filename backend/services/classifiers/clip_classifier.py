@@ -7,11 +7,12 @@ from typing import Optional, List
 from transformers import CLIPProcessor, CLIPModel
 from PIL import Image
 
-from .base import ActionClassifier, ClassificationResult
+from .base import ActionClassifier, ClassificationResult, register_classifier
 
 logger = logging.getLogger(__name__)
 
 
+@register_classifier('clip')
 class CLIPZeroShotClassifier(ActionClassifier):
     """Zero-shot action classifier using CLIP"""
 

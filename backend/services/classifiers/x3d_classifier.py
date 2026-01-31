@@ -6,11 +6,12 @@ import torch
 from typing import Optional
 import json
 
-from .base import ActionClassifier, ClassificationResult
+from .base import ActionClassifier, ClassificationResult, register_classifier
 
 logger = logging.getLogger(__name__)
 
 
+@register_classifier('x3d')
 class X3DClassifier(ActionClassifier):
     """Action classifier using X3D model from PyTorchVideo"""
 

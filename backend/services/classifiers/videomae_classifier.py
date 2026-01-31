@@ -6,16 +6,20 @@ import torch
 from typing import Optional
 from transformers import VideoMAEImageProcessor, VideoMAEForVideoClassification
 
-from .base import ActionClassifier, ClassificationResult
+from .base import ActionClassifier, ClassificationResult, register_classifier
+from utils import config
 
 logger = logging.getLogger(__name__)
 
 
+@register_classifier('videomae')
 class VideoMAEClassifier(ActionClassifier):
     """Action classifier using VideoMAE model"""
 
-    def __init__(self, model_name: str = "MCG-NJU/videomae-base-finetuned-kinetics"):
+    def __init__(self, model_name: str = None):
         super().__init__()
+        if model_name is None:
+            model_name = config.VIDEOMAE_MODEL_NAME
         self.model_name = model_name
         self.processor: Optional[VideoMAEImageProcessor] = None
         self.model: Optional[VideoMAEForVideoClassification] = None

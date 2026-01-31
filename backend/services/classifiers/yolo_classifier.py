@@ -6,11 +6,13 @@ import cv2
 from typing import Optional, List, Tuple
 from ultralytics import YOLO
 
-from .base import ActionClassifier, ClassificationResult
+from .base import ActionClassifier, ClassificationResult, register_classifier
+from utils import config
 
 logger = logging.getLogger(__name__)
 
 
+@register_classifier('yolo')
 class YOLOBallTrackingClassifier(ActionClassifier):
     """
     Action classifier using YOLO ball tracking and position analysis
@@ -23,8 +25,10 @@ class YOLOBallTrackingClassifier(ActionClassifier):
     - Catching: Sudden stop in ball movement
     """
 
-    def __init__(self, model_path: str = 'yolov8n.pt'):
+    def __init__(self, model_path: str = None):
         super().__init__()
+        if model_path is None:
+            model_path = config.YOLO_MODEL_PATH
         self.model_path = model_path
         self.model: Optional[YOLO] = None
 

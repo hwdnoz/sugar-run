@@ -6,11 +6,12 @@ import torch
 from typing import Optional
 from transformers import VivitImageProcessor, VivitForVideoClassification
 
-from .base import ActionClassifier, ClassificationResult
+from .base import ActionClassifier, ClassificationResult, register_classifier
 
 logger = logging.getLogger(__name__)
 
 
+@register_classifier('vivit')
 class ViViTClassifier(ActionClassifier):
     """Action classifier using ViViT (Video Vision Transformer) model"""
 

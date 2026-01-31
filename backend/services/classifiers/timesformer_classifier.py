@@ -6,11 +6,12 @@ import torch
 from typing import Optional
 from transformers import AutoImageProcessor, TimesformerForVideoClassification
 
-from .base import ActionClassifier, ClassificationResult
+from .base import ActionClassifier, ClassificationResult, register_classifier
 
 logger = logging.getLogger(__name__)
 
 
+@register_classifier('timesformer')
 class TimesFormerClassifier(ActionClassifier):
     """Action classifier using TimesFormer model"""
 
