@@ -9,6 +9,9 @@ services:
       - FLASK_DEBUG=1
     volumes:
       - ./data:/app/data
+      - ./backend/services:/app/services
+      - ./backend/utils:/app/utils
+      - ./backend/app.py:/app/app.py
     restart: unless-stopped
     networks:
       - app-network
