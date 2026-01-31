@@ -17,62 +17,62 @@ from utils import config, storage
 
 logger = logging.getLogger(__name__)
 
-# Lazy-load classifiers on first use
-_videomae_classifier = None
-_yolo_classifier = None
-_timesformer_classifier = None
-_x3d_classifier = None
-_clip_classifier = None
-_vivit_classifier = None
-_slowfast_classifier = None
+class ClassifierFactory:
+    """Simple Factory for creating classifier instances (lazy initialization)"""
 
+    _videomae = None
+    _yolo = None
+    _timesformer = None
+    _x3d = None
+    _clip = None
+    _vivit = None
+    _slowfast = None
 
-def get_classifier(classifier_type='videomae'):
-    """Get classifier instance (lazy initialization)"""
-    global _videomae_classifier, _yolo_classifier, _timesformer_classifier, _x3d_classifier, _clip_classifier, _vivit_classifier, _slowfast_classifier
-
-    if classifier_type == 'yolo':
-        if _yolo_classifier is None:
-            logger.info("Initializing YOLO Ball Tracking classifier...")
-            _yolo_classifier = YOLOBallTrackingClassifier(model_path=config.YOLO_MODEL_PATH)
-            _yolo_classifier.initialize()
-        return _yolo_classifier
-    elif classifier_type == 'timesformer':
-        if _timesformer_classifier is None:
-            logger.info("Initializing TimesFormer classifier...")
-            _timesformer_classifier = TimesFormerClassifier()
-            _timesformer_classifier.initialize()
-        return _timesformer_classifier
-    elif classifier_type == 'x3d':
-        if _x3d_classifier is None:
-            logger.info("Initializing X3D classifier...")
-            _x3d_classifier = X3DClassifier()
-            _x3d_classifier.initialize()
-        return _x3d_classifier
-    elif classifier_type == 'clip':
-        if _clip_classifier is None:
-            logger.info("Initializing CLIP Zero-Shot classifier...")
-            _clip_classifier = CLIPZeroShotClassifier()
-            _clip_classifier.initialize()
-        return _clip_classifier
-    elif classifier_type == 'vivit':
-        if _vivit_classifier is None:
-            logger.info("Initializing ViViT classifier...")
-            _vivit_classifier = ViViTClassifier()
-            _vivit_classifier.initialize()
-        return _vivit_classifier
-    elif classifier_type == 'slowfast':
-        if _slowfast_classifier is None:
-            logger.info("Initializing SlowFast classifier...")
-            _slowfast_classifier = SlowFastClassifier()
-            _slowfast_classifier.initialize()
-        return _slowfast_classifier
-    else:  # default to videomae
-        if _videomae_classifier is None:
-            logger.info("Initializing VideoMAE classifier...")
-            _videomae_classifier = VideoMAEClassifier(model_name=config.VIDEOMAE_MODEL_NAME)
-            _videomae_classifier.initialize()
-        return _videomae_classifier
+    @classmethod
+    def create(cls, classifier_type='videomae'):
+        """Create or return cached classifier instance"""
+        if classifier_type == 'yolo':
+            if cls._yolo is None:
+                logger.info("Initializing YOLO Ball Tracking classifier...")
+                cls._yolo = YOLOBallTrackingClassifier(model_path=config.YOLO_MODEL_PATH)
+                cls._yolo.initialize()
+            return cls._yolo
+        elif classifier_type == 'timesformer':
+            if cls._timesformer is None:
+                logger.info("Initializing TimesFormer classifier...")
+                cls._timesformer = TimesFormerClassifier()
+                cls._timesformer.initialize()
+            return cls._timesformer
+        elif classifier_type == 'x3d':
+            if cls._x3d is None:
+                logger.info("Initializing X3D classifier...")
+                cls._x3d = X3DClassifier()
+                cls._x3d.initialize()
+            return cls._x3d
+        elif classifier_type == 'clip':
+            if cls._clip is None:
+                logger.info("Initializing CLIP Zero-Shot classifier...")
+                cls._clip = CLIPZeroShotClassifier()
+                cls._clip.initialize()
+            return cls._clip
+        elif classifier_type == 'vivit':
+            if cls._vivit is None:
+                logger.info("Initializing ViViT classifier...")
+                cls._vivit = ViViTClassifier()
+                cls._vivit.initialize()
+            return cls._vivit
+        elif classifier_type == 'slowfast':
+            if cls._slowfast is None:
+                logger.info("Initializing SlowFast classifier...")
+                cls._slowfast = SlowFastClassifier()
+                cls._slowfast.initialize()
+            return cls._slowfast
+        else:  # default to videomae
+            if cls._videomae is None:
+                logger.info("Initializing VideoMAE classifier...")
+                cls._videomae = VideoMAEClassifier(model_name=config.VIDEOMAE_MODEL_NAME)
+                cls._videomae.initialize()
+            return cls._videomae
 
 
 def analyze_video(video_path, classifier_type='videomae'):
@@ -88,8 +88,8 @@ def analyze_video(video_path, classifier_type='videomae'):
     logger.info(f"Opening video file: {video_path}")
     logger.info(f"Using classifier: {classifier_type}")
 
-    # Get classifier
-    classifier = get_classifier(classifier_type)
+    # Create classifier with factory
+    classifier = ClassifierFactory.create(classifier_type)
     if not classifier.is_ready():
         raise RuntimeError(f"Classifier {classifier_type} failed to initialize")
 
