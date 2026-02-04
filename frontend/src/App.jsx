@@ -10,13 +10,32 @@ export default function App() {
   const [selectedSession, setSelectedSession] = useState(null)
   const [classifiers, setClassifiers] = useState([])
   const [selectedClassifier, setSelectedClassifier] = useState('videomae')
+  const [currentFile, setCurrentFile] = useState(null)
 
   const handleUpload = async (e) => {
     const file = e.target.files[0]
+    setCurrentFile(file)
     setVideoUrl(URL.createObjectURL(file))
 
     const formData = new FormData()
     formData.append('video', file)
+    formData.append('classifier', selectedClassifier)
+
+    setLoading(true)
+    const res = await fetch(`${config.API_BASE_URL}/analyze`, {
+      method: 'POST',
+      body: formData
+    })
+    const result = await res.json()
+    setStats(result)
+    setLoading(false)
+  }
+
+  const handleReanalyze = async () => {
+    if (!currentFile) return
+
+    const formData = new FormData()
+    formData.append('video', currentFile)
     formData.append('classifier', selectedClassifier)
 
     setLoading(true)
@@ -136,7 +155,28 @@ export default function App() {
             </select>
           </div>
 
-          <input type="file" accept="video/*" onChange={handleUpload} />
+          <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <input type="file" accept="video/*" onChange={handleUpload} />
+
+            {currentFile && (
+              <button
+                onClick={handleReanalyze}
+                disabled={loading}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '16px',
+                  backgroundColor: loading ? '#ccc' : '#2196F3',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                {loading ? 'Analyzing...' : 'Re-analyze with Selected Classifier'}
+              </button>
+            )}
+          </div>
 
       {loading && <p>Analyzing video with {classifiers.find(c => c.id === selectedClassifier)?.name || 'classifier'}...</p>}
 
