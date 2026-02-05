@@ -427,130 +427,141 @@ export default function App() {
               <p>No detection sessions yet. Upload a video to create a session.</p>
             </div>
           ) : (
-            <div className="admin-content">
-              {/* Session List */}
+            <div className="admin-content-2col">
+              {/* Left Column: Sessions List */}
               <div className="sessions-list">
                 <h3>📋 Recent Sessions</h3>
-                {sessions.map((session, idx) => {
-                  const getScoreClass = (score) => {
-                    if (score >= 90) return 'excellent'
-                    if (score >= 70) return 'good'
-                    if (score >= 50) return 'fair'
-                    return 'poor'
-                  }
+                <div className="sessions-scroll">
+                  {sessions.map((session, idx) => {
+                    const getScoreClass = (score) => {
+                      if (score >= 90) return 'excellent'
+                      if (score >= 70) return 'good'
+                      if (score >= 50) return 'fair'
+                      return 'poor'
+                    }
 
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => selectSession(session.session_id)}
-                      className={`session-item ${selectedSession?.session_id === session.session_id ? 'selected' : ''}`}
-                    >
-                      <div className="session-content">
-                        <div className="session-info">
-                          <div className="session-title">
-                            Session: {session.session_id}
-                          </div>
-                          <div className="session-meta">
-                            <span>⏰ {new Date(session.timestamp).toLocaleString()}</span>
-                            <span>📊 Detections: {session.total_detections}</span>
-                            <span>🎯 Points: {session.stats.points}</span>
-                            <span>🤝 Assists: {session.stats.assists}</span>
-                            {session.classifier_used && (
-                              <span className="classifier-tag">🔬 {session.classifier_used}</span>
-                            )}
-                          </div>
-                        </div>
-                        {session.evaluation && (
-                          <div className={`score-badge ${getScoreClass(session.evaluation.overall_score)}`}>
-                            {session.evaluation.overall_score}%
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+                    const isSelected = selectedSession?.session_id === session.session_id
 
-              {/* Selected Session Details */}
-              {selectedSession && (
-                <div className="session-details">
-                  {/* Evaluation Score Card */}
-                  {selectedSession.evaluation && (
-                    <div className="card evaluation-card">
-                      <div className="card-header">
-                        <h3>📊 Evaluation Metrics</h3>
-                        <div className={`score-badge large ${
-                          selectedSession.evaluation.overall_score >= 90 ? 'excellent' :
-                          selectedSession.evaluation.overall_score >= 70 ? 'good' :
-                          selectedSession.evaluation.overall_score >= 50 ? 'fair' : 'poor'
-                        }`}>
-                          {selectedSession.evaluation.overall_score}%
-                        </div>
-                      </div>
-                      <div className="card-body">
-                        <div className="metrics-grid">
-                          <div className="metric-item">
-                            <div className="metric-label">Precision</div>
-                            <div className="metric-value">{selectedSession.evaluation.precision}%</div>
-                          </div>
-                          <div className="metric-item">
-                            <div className="metric-label">Recall</div>
-                            <div className="metric-value">{selectedSession.evaluation.recall}%</div>
-                          </div>
-                          <div className="metric-item">
-                            <div className="metric-label">F1 Score</div>
-                            <div className="metric-value">{selectedSession.evaluation.f1_score}%</div>
-                          </div>
-                          <div className="metric-item">
-                            <div className="metric-label">Stats Accuracy</div>
-                            <div className="metric-value">{selectedSession.evaluation.stats_accuracy}%</div>
-                          </div>
-                        </div>
-                        <div className="confusion-matrix">
-                          <span className="tp">✓ {selectedSession.evaluation.true_positives} TP</span>
-                          <span className="fp">✗ {selectedSession.evaluation.false_positives} FP</span>
-                          <span className="fn">⚠ {selectedSession.evaluation.false_negatives} FN</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="card detections-card">
-                    <div className="card-header">
-                      <h3>🎬 Detection Frames</h3>
-                    </div>
-                    <div className="card-body">
-                      <div className="detections-grid">
-                        {selectedSession.detections.map((det, idx) => (
-                          <div
-                            key={idx}
-                            className={`detection-card ${
-                              det.classified_as.includes('IGNORED') ? 'ignored' :
-                              det.classified_as.includes('SHOT') ? 'shot' :
-                              det.classified_as.includes('ASSIST') ? 'assist' :
-                              det.classified_as.includes('BLOCK') ? 'block' : ''
-                            }`}
-                          >
-                            <img
-                              src={`${config.API_BASE_URL}/detections/image/${det.frame_image}`}
-                              alt={`Detection at ${det.timestamp}s`}
-                              className="detection-image"
-                            />
-                            <div className="detection-info">
-                              <div className="detection-result">{det.classified_as}</div>
-                              <div className="detection-details">
-                                <div>⏱️ {det.timestamp}s (Frame {det.frame})</div>
-                                <div>🔍 {det.detected_action}</div>
-                                <div>📊 Confidence: {det.confidence}</div>
-                              </div>
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => selectSession(session.session_id)}
+                        className={`session-item ${isSelected ? 'selected' : ''}`}
+                      >
+                        <div className="session-content">
+                          <div className="session-info">
+                            <div className="session-title">
+                              Session: {session.session_id}
+                            </div>
+                            <div className="session-meta">
+                              <span>⏰ {new Date(session.timestamp).toLocaleString()}</span>
+                              <span>📊 Detections: {session.total_detections}</span>
+                              <span>🎯 Points: {session.stats.points}</span>
+                              <span>🤝 Assists: {session.stats.assists}</span>
+                              {session.classifier_used && (
+                                <span className="classifier-tag">🔬 {session.classifier_used}</span>
+                              )}
                             </div>
                           </div>
-                        ))}
+                          {session.evaluation && (
+                            <div className={`score-badge ${getScoreClass(session.evaluation.overall_score)}`}>
+                              {session.evaluation.overall_score}%
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Right Column: Session Details */}
+              <div className="session-details-panel">
+                {!selectedSession ? (
+                  <div className="empty-state">
+                    <div className="empty-icon">👈</div>
+                    <p>Select a session to view detection details</p>
+                  </div>
+                ) : (
+                  <div className="session-details-content">
+                    {/* Evaluation Score Card */}
+                    {selectedSession.evaluation && (
+                      <div className="card evaluation-card">
+                        <div className="card-header">
+                          <h3>📊 Evaluation Metrics</h3>
+                          <div className={`score-badge large ${
+                            selectedSession.evaluation.overall_score >= 90 ? 'excellent' :
+                            selectedSession.evaluation.overall_score >= 70 ? 'good' :
+                            selectedSession.evaluation.overall_score >= 50 ? 'fair' : 'poor'
+                          }`}>
+                            {selectedSession.evaluation.overall_score}%
+                          </div>
+                        </div>
+                        <div className="card-body">
+                          <div className="metrics-grid">
+                            <div className="metric-item">
+                              <div className="metric-label">Precision</div>
+                              <div className="metric-value">{selectedSession.evaluation.precision}%</div>
+                            </div>
+                            <div className="metric-item">
+                              <div className="metric-label">Recall</div>
+                              <div className="metric-value">{selectedSession.evaluation.recall}%</div>
+                            </div>
+                            <div className="metric-item">
+                              <div className="metric-label">F1 Score</div>
+                              <div className="metric-value">{selectedSession.evaluation.f1_score}%</div>
+                            </div>
+                            <div className="metric-item">
+                              <div className="metric-label">Stats Accuracy</div>
+                              <div className="metric-value">{selectedSession.evaluation.stats_accuracy}%</div>
+                            </div>
+                          </div>
+                          <div className="confusion-matrix">
+                            <span className="tp">✓ {selectedSession.evaluation.true_positives} TP</span>
+                            <span className="fp">✗ {selectedSession.evaluation.false_positives} FP</span>
+                            <span className="fn">⚠ {selectedSession.evaluation.false_negatives} FN</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="card detections-card">
+                      <div className="card-header">
+                        <h3>🎬 Detection Frames</h3>
+                      </div>
+                      <div className="card-body">
+                        <div className="detections-grid">
+                          {selectedSession.detections.map((det, idx) => (
+                            <div
+                              key={idx}
+                              className={`detection-card ${
+                                det.classified_as.includes('IGNORED') ? 'ignored' :
+                                det.classified_as.includes('SHOT') ? 'shot' :
+                                det.classified_as.includes('ASSIST') ? 'assist' :
+                                det.classified_as.includes('BLOCK') ? 'block' : ''
+                              }`}
+                            >
+                              <img
+                                src={`${config.API_BASE_URL}/detections/image/${det.frame_image}`}
+                                alt={`Detection at ${det.timestamp}s`}
+                                className="detection-image"
+                              />
+                              <div className="detection-info">
+                                <div className="detection-result">{det.classified_as}</div>
+                                <div className="detection-details">
+                                  <div>⏱️ {det.timestamp}s (Frame {det.frame})</div>
+                                  <div>🔍 {det.detected_action}</div>
+                                  <div>📊 Confidence: {det.confidence}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>
