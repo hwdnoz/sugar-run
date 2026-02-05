@@ -13,37 +13,44 @@ CLASSIFIER_INFO = [
     {
         'id': 'videomae',
         'name': 'Meta VideoMAE',
-        'description': 'Video Masked Autoencoder'
+        'description': 'Video Masked Autoencoder',
+        'link': 'https://huggingface.co/docs/transformers/model_doc/videomae'
     },
     {
         'id': 'yolo',
         'name': 'Ultralytics YOLOv8',
-        'description': 'Ball tracking & trajectory inference'
+        'description': 'Ball tracking & trajectory inference',
+        'link': 'https://docs.ultralytics.com/models/yolov8/'
     },
     {
         'id': 'timesformer',
         'name': 'Meta TimesFormer',
-        'description': 'Space-time attention transformer'
+        'description': 'Space-time attention transformer',
+        'link': 'https://huggingface.co/docs/transformers/model_doc/timesformer'
     },
     {
         'id': 'x3d',
         'name': 'Meta X3D',
-        'description': 'Efficient 3D CNN'
+        'description': 'Efficient 3D CNN',
+        'link': 'https://paperswithcode.com/method/x3d'
     },
     {
         'id': 'clip',
         'name': 'OpenAI CLIP',
-        'description': 'Zero-shot vision-language model'
+        'description': 'Zero-shot vision-language model',
+        'link': 'https://huggingface.co/docs/transformers/model_doc/clip'
     },
     {
         'id': 'vivit',
         'name': 'Google ViViT',
-        'description': 'Video Vision Transformer'
+        'description': 'Video Vision Transformer',
+        'link': 'https://huggingface.co/docs/transformers/model_doc/vivit'
     },
     {
         'id': 'slowfast',
         'name': 'Meta SlowFast',
-        'description': 'Dual-pathway network'
+        'description': 'Dual-pathway network',
+        'link': 'https://paperswithcode.com/method/slowfast'
     }
 ]
 

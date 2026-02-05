@@ -94,6 +94,7 @@ export default function App() {
         throw new Error(`Failed to fetch classifiers: ${res.status} ${res.statusText}`)
       }
       const data = await res.json()
+      console.log('Fetched classifiers:', data.classifiers)
       setClassifiers(data.classifiers || [])
 
       // Set first classifier as default if available
@@ -117,6 +118,12 @@ export default function App() {
   }
 
   const selectSession = async (sessionId) => {
+    // If clicking on already selected session, deselect it
+    if (selectedSession?.session_id === sessionId) {
+      setSelectedSession(null)
+      return
+    }
+
     try {
       const res = await fetch(`${config.API_BASE_URL}/detections/${sessionId}`)
       const data = await res.json()
@@ -458,9 +465,33 @@ export default function App() {
                               <span>📊 Detections: {session.total_detections}</span>
                               <span>🎯 Points: {session.stats.points}</span>
                               <span>🤝 Assists: {session.stats.assists}</span>
-                              {session.classifier_used && (
-                                <span className="classifier-tag">🔬 {session.classifier_used}</span>
-                              )}
+                              {session.classifier_used && (() => {
+                                // Try to find classifier by ID or name (case-insensitive)
+                                const classifier = classifiers.find(c =>
+                                  c.id === session.classifier_used ||
+                                  c.name === session.classifier_used ||
+                                  c.id.toLowerCase() === session.classifier_used.toLowerCase() ||
+                                  c.name.toLowerCase().includes(session.classifier_used.toLowerCase()) ||
+                                  session.classifier_used.toLowerCase().includes(c.id.toLowerCase())
+                                )
+                                const displayName = classifier ? classifier.name : session.classifier_used
+                                return (
+                                  <span className="classifier-tag">
+                                    🔬 {displayName}
+                                    {classifier?.link && (
+                                      <a
+                                        href={classifier.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="classifier-link"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        📖
+                                      </a>
+                                    )}
+                                  </span>
+                                )
+                              })()}
                             </div>
                           </div>
                           {session.evaluation && (
