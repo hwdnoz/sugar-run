@@ -21,6 +21,8 @@ services:
     container_name: basketball-tracker-frontend
     ports:
       - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
     depends_on:
       - backend
     restart: unless-stopped

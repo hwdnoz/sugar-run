@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import config from './config'
+import './styles.css'
 
 export default function App() {
   const [stats, setStats] = useState(null)
@@ -11,6 +12,7 @@ export default function App() {
   const [classifiers, setClassifiers] = useState([])
   const [selectedClassifier, setSelectedClassifier] = useState('videomae')
   const [currentFile, setCurrentFile] = useState(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
 
   const handleUpload = async (e) => {
     const file = e.target.files[0]
@@ -22,13 +24,32 @@ export default function App() {
     formData.append('classifier', selectedClassifier)
 
     setLoading(true)
+    setUploadProgress(0)
+
+    // Simulate upload progress
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval)
+          return 90
+        }
+        return prev + 10
+      })
+    }, 200)
+
     const res = await fetch(`${config.API_BASE_URL}/analyze`, {
       method: 'POST',
       body: formData
     })
     const result = await res.json()
-    setStats(result)
-    setLoading(false)
+
+    setUploadProgress(100)
+    clearInterval(progressInterval)
+    setTimeout(() => {
+      setStats(result)
+      setLoading(false)
+      setUploadProgress(0)
+    }, 500)
   }
 
   const handleReanalyze = async () => {
@@ -39,22 +60,49 @@ export default function App() {
     formData.append('classifier', selectedClassifier)
 
     setLoading(true)
+    setUploadProgress(0)
+
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval)
+          return 90
+        }
+        return prev + 10
+      })
+    }, 200)
+
     const res = await fetch(`${config.API_BASE_URL}/analyze`, {
       method: 'POST',
       body: formData
     })
     const result = await res.json()
-    setStats(result)
-    setLoading(false)
+
+    setUploadProgress(100)
+    clearInterval(progressInterval)
+    setTimeout(() => {
+      setStats(result)
+      setLoading(false)
+      setUploadProgress(0)
+    }, 500)
   }
 
   const fetchClassifiers = async () => {
     try {
       const res = await fetch(`${config.API_BASE_URL}/classifiers`)
+      if (!res.ok) {
+        throw new Error(`Failed to fetch classifiers: ${res.status} ${res.statusText}`)
+      }
       const data = await res.json()
       setClassifiers(data.classifiers || [])
+
+      // Set first classifier as default if available
+      if (data.classifiers && data.classifiers.length > 0) {
+        setSelectedClassifier(data.classifiers[0].id)
+      }
     } catch (error) {
       console.error('Error fetching classifiers:', error)
+      throw error
     }
   }
 
@@ -89,248 +137,331 @@ export default function App() {
   }, [currentView])
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1>Basketball Box Score Analyzer</h1>
+    <div className="app-container">
+      {/* Header */}
+      <header className="header">
+        <div className="header-content">
+          <div className="logo">
+            <span className="basketball-icon">🏀</span>
+            <h1>Basketball Box Score Analyzer</h1>
+          </div>
+          <div className="tagline">AI-Powered Game Analysis</div>
+        </div>
+      </header>
 
       {/* Tab Navigation */}
-      <div style={{ marginBottom: '20px', borderBottom: '2px solid #e0e0e0' }}>
+      <div className="tab-navigation">
         <button
           onClick={() => setCurrentView('upload')}
-          style={{
-            padding: '10px 20px',
-            marginRight: '10px',
-            border: 'none',
-            borderBottom: currentView === 'upload' ? '3px solid #2196F3' : 'none',
-            background: 'none',
-            cursor: 'pointer',
-            fontWeight: currentView === 'upload' ? 'bold' : 'normal',
-            fontSize: '16px'
-          }}
+          className={`tab-button ${currentView === 'upload' ? 'active' : ''}`}
         >
+          <span className="tab-icon">📤</span>
           Upload & Analyze
         </button>
         <button
           onClick={() => setCurrentView('admin')}
-          style={{
-            padding: '10px 20px',
-            border: 'none',
-            borderBottom: currentView === 'admin' ? '3px solid #2196F3' : 'none',
-            background: 'none',
-            cursor: 'pointer',
-            fontWeight: currentView === 'admin' ? 'bold' : 'normal',
-            fontSize: '16px'
-          }}
+          className={`tab-button ${currentView === 'admin' ? 'active' : ''}`}
         >
+          <span className="tab-icon">📊</span>
           Admin Logs
         </button>
       </div>
 
+      <div className="main-content">
+
       {/* Upload View */}
       {currentView === 'upload' && (
-        <div>
-          {/* Classifier Selection */}
-          <div style={{ marginBottom: '20px' }}>
-            <label htmlFor="classifier" style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-              Classification Method:
-            </label>
-            <select
-              id="classifier"
-              value={selectedClassifier}
-              onChange={(e) => setSelectedClassifier(e.target.value)}
-              style={{
-                padding: '10px',
-                fontSize: '16px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                width: '100%',
-                maxWidth: '500px',
-                cursor: 'pointer'
-              }}
-            >
-              {classifiers.map((classifier) => (
-                <option key={classifier.id} value={classifier.id}>
-                  {classifier.name} - {classifier.description}
-                </option>
-              ))}
-            </select>
+        <div className="dashboard-grid">
+          {/* Instructions Card */}
+          <div className="card instructions-card">
+            <div className="card-header">
+              <h2>🎯 How It Works</h2>
+            </div>
+            <div className="card-body">
+              <ol className="instructions-list">
+                <li>
+                  <strong>Select a Classifier</strong>
+                  <p>Choose the AI model that will analyze your video</p>
+                </li>
+                <li>
+                  <strong>Upload Your Video</strong>
+                  <p>Select a basketball game video from your device</p>
+                </li>
+                <li>
+                  <strong>Get Analysis</strong>
+                  <p>View detailed box scores including points, assists, steals, blocks, and rebounds</p>
+                </li>
+              </ol>
+              <div className="demo-hint">
+                <span className="hint-icon">💡</span>
+                <p>Tip: Higher resolution videos provide more accurate results!</p>
+              </div>
+            </div>
           </div>
 
-          <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <input type="file" accept="video/*" onChange={handleUpload} />
-
-            {currentFile && (
-              <button
-                onClick={handleReanalyze}
-                disabled={loading}
-                style={{
-                  padding: '10px 20px',
-                  fontSize: '16px',
-                  backgroundColor: loading ? '#ccc' : '#2196F3',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  fontWeight: 'bold'
-                }}
-              >
-                {loading ? 'Analyzing...' : 'Re-analyze with Selected Classifier'}
-              </button>
-            )}
-          </div>
-
-      {loading && <p>Analyzing video with {classifiers.find(c => c.id === selectedClassifier)?.name || 'classifier'}...</p>}
-
-      {videoUrl && (
-        <div style={{ marginTop: '20px' }}>
-          <video src={videoUrl} width="100%" controls />
-        </div>
-      )}
-
-      {stats && (
-        <div style={{ marginTop: '30px' }}>
-          <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-            <strong>Classifier Used:</strong> {stats.classifier_used || selectedClassifier}
-          </div>
-          <h2>Box Score</h2>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #000' }}>
-                <th style={{ padding: '10px', textAlign: 'left' }}>Stat</th>
-                <th style={{ padding: '10px', textAlign: 'right' }}>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr style={{ borderBottom: '1px solid #ccc' }}>
-                <td style={{ padding: '10px' }}>Points</td>
-                <td style={{ padding: '10px', textAlign: 'right' }}>{stats.points}</td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #ccc' }}>
-                <td style={{ padding: '10px' }}>Assists</td>
-                <td style={{ padding: '10px', textAlign: 'right' }}>{stats.assists}</td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #ccc' }}>
-                <td style={{ padding: '10px' }}>Steals</td>
-                <td style={{ padding: '10px', textAlign: 'right' }}>{stats.steals}</td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #ccc' }}>
-                <td style={{ padding: '10px' }}>Blocks</td>
-                <td style={{ padding: '10px', textAlign: 'right' }}>{stats.blocks}</td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #ccc' }}>
-                <td style={{ padding: '10px' }}>Rebounds</td>
-                <td style={{ padding: '10px', textAlign: 'right' }}>{stats.rebounds}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          {stats.detections && stats.detections.length > 0 && (
-            <div style={{ marginTop: '40px' }}>
-              <h2>Detection Timeline (Debug)</h2>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #000', backgroundColor: '#f5f5f5' }}>
-                    <th style={{ padding: '8px', textAlign: 'left' }}>Time</th>
-                    <th style={{ padding: '8px', textAlign: 'left' }}>Frame</th>
-                    <th style={{ padding: '8px', textAlign: 'left' }}>Detected Action</th>
-                    <th style={{ padding: '8px', textAlign: 'right' }}>Confidence</th>
-                    <th style={{ padding: '8px', textAlign: 'left' }}>Result</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.detections.map((det, idx) => (
-                    <tr
-                      key={idx}
-                      style={{
-                        borderBottom: '1px solid #e0e0e0',
-                        backgroundColor: det.classified_as.includes('IGNORED') ? '#fff8f0' :
-                                       det.classified_as.includes('SHOT') ? '#e8f5e9' :
-                                       det.classified_as.includes('ASSIST') ? '#e3f2fd' :
-                                       det.classified_as.includes('BLOCK') ? '#fce4ec' : '#fff'
-                      }}
-                    >
-                      <td style={{ padding: '8px' }}>{det.timestamp}s</td>
-                      <td style={{ padding: '8px' }}>{det.frame}</td>
-                      <td style={{ padding: '8px' }}>{det.detected_action}</td>
-                      <td style={{ padding: '8px', textAlign: 'right' }}>{det.confidence}</td>
-                      <td style={{ padding: '8px', fontWeight: det.classified_as.includes('IGNORED') ? 'normal' : 'bold' }}>
-                        {det.classified_as}
-                      </td>
-                    </tr>
+          {/* Upload Card */}
+          <div className="card upload-card">
+            <div className="card-header">
+              <h2>📤 Upload & Configure</h2>
+            </div>
+            <div className="card-body">
+              {/* Classifier Selection */}
+              <div className="form-group">
+                <label htmlFor="classifier" className="form-label">
+                  Classification Method:
+                </label>
+                <select
+                  id="classifier"
+                  value={selectedClassifier}
+                  onChange={(e) => setSelectedClassifier(e.target.value)}
+                  className="form-select"
+                >
+                  {classifiers.map((classifier) => (
+                    <option key={classifier.id} value={classifier.id}>
+                      {classifier.name} - {classifier.description}
+                    </option>
                   ))}
-                </tbody>
-              </table>
+                </select>
+              </div>
+
+              {/* File Upload */}
+              <div className="upload-section">
+                <label className="file-upload-label">
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={handleUpload}
+                    className="file-input"
+                  />
+                  <div className="file-upload-button">
+                    <span className="upload-icon">📁</span>
+                    <span>Choose Video File</span>
+                  </div>
+                </label>
+
+                {currentFile && (
+                  <div className="current-file">
+                    <span className="file-icon">🎥</span>
+                    <span className="file-name">{currentFile.name}</span>
+                  </div>
+                )}
+
+                {currentFile && !loading && (
+                  <button
+                    onClick={handleReanalyze}
+                    className="reanalyze-button"
+                  >
+                    <span>🔄</span>
+                    Re-analyze with Selected Classifier
+                  </button>
+                )}
+              </div>
+
+              {/* Upload Progress */}
+              {loading && (
+                <div className="progress-section">
+                  <div className="progress-header">
+                    <span className="analyzing-text">
+                      Analyzing video with {classifiers.find(c => c.id === selectedClassifier)?.name || 'classifier'}...
+                    </span>
+                    <span className="progress-percentage">{uploadProgress}%</span>
+                  </div>
+                  <div className="progress-bar-container">
+                    <div
+                      className="progress-bar"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                  <div className="progress-animation">
+                    <span className="bouncing-ball">🏀</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Recent Analyses Card */}
+          {sessions.length > 0 && (
+            <div className="card recent-card">
+              <div className="card-header">
+                <h2>📋 Recent Analyses</h2>
+              </div>
+              <div className="card-body">
+                <div className="recent-list">
+                  {sessions.slice(0, 3).map((session, idx) => (
+                    <div key={idx} className="recent-item" onClick={() => {
+                      setCurrentView('admin')
+                      selectSession(session.session_id)
+                    }}>
+                      <div className="recent-time">
+                        {new Date(session.timestamp).toLocaleTimeString()}
+                      </div>
+                      <div className="recent-stats">
+                        Points: {session.stats.points} | Assists: {session.stats.assists}
+                      </div>
+                      {session.evaluation && (
+                        <div className="recent-score">
+                          {session.evaluation.overall_score}%
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
       )}
+
+      {/* Video Player */}
+      {videoUrl && (
+        <div className="card video-card full-width">
+          <div className="card-header">
+            <h2>🎥 Video Preview</h2>
+          </div>
+          <div className="card-body">
+            <video src={videoUrl} className="video-player" controls />
+          </div>
+        </div>
+      )}
+
+      {/* Results */}
+      {stats && (
+        <div className="results-section full-width">
+          <div className="card stats-card">
+            <div className="card-header">
+              <h2>📊 Box Score</h2>
+              <div className="classifier-badge">
+                Classifier: {stats.classifier_used || selectedClassifier}
+              </div>
+            </div>
+            <div className="card-body">
+              <div className="stats-grid">
+                <div className="stat-box points">
+                  <div className="stat-icon">🎯</div>
+                  <div className="stat-value">{stats.points}</div>
+                  <div className="stat-label">Points</div>
+                </div>
+                <div className="stat-box assists">
+                  <div className="stat-icon">🤝</div>
+                  <div className="stat-value">{stats.assists}</div>
+                  <div className="stat-label">Assists</div>
+                </div>
+                <div className="stat-box steals">
+                  <div className="stat-icon">👐</div>
+                  <div className="stat-value">{stats.steals}</div>
+                  <div className="stat-label">Steals</div>
+                </div>
+                <div className="stat-box blocks">
+                  <div className="stat-icon">🚫</div>
+                  <div className="stat-value">{stats.blocks}</div>
+                  <div className="stat-label">Blocks</div>
+                </div>
+                <div className="stat-box rebounds">
+                  <div className="stat-icon">↩️</div>
+                  <div className="stat-value">{stats.rebounds}</div>
+                  <div className="stat-label">Rebounds</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Detection Timeline */}
+          {stats.detections && stats.detections.length > 0 && (
+            <div className="card timeline-card">
+              <div className="card-header">
+                <h2>⏱️ Detection Timeline (Debug)</h2>
+              </div>
+              <div className="card-body">
+                <div className="timeline-table-wrapper">
+                  <table className="timeline-table">
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>Frame</th>
+                        <th>Detected Action</th>
+                        <th>Confidence</th>
+                        <th>Result</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.detections.map((det, idx) => (
+                        <tr
+                          key={idx}
+                          className={`timeline-row ${
+                            det.classified_as.includes('IGNORED') ? 'ignored' :
+                            det.classified_as.includes('SHOT') ? 'shot' :
+                            det.classified_as.includes('ASSIST') ? 'assist' :
+                            det.classified_as.includes('BLOCK') ? 'block' : ''
+                          }`}
+                        >
+                          <td>{det.timestamp}s</td>
+                          <td>{det.frame}</td>
+                          <td>{det.detected_action}</td>
+                          <td>{det.confidence}</td>
+                          <td className="result-cell">{det.classified_as}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Admin View */}
       {currentView === 'admin' && (
-        <div>
-          <h2>Detection Logs</h2>
-          <p style={{ color: '#666', marginBottom: '20px' }}>
-            View all detection sessions with saved frames showing what the model detected
-          </p>
+        <div className="admin-view">
+          <div className="admin-header">
+            <h2>🔍 Detection Logs</h2>
+            <p className="admin-subtitle">
+              View all detection sessions with saved frames showing what the model detected
+            </p>
+          </div>
 
           {sessions.length === 0 ? (
-            <p style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-              No detection sessions yet. Upload a video to create a session.
-            </p>
+            <div className="card empty-state">
+              <div className="empty-icon">📂</div>
+              <p>No detection sessions yet. Upload a video to create a session.</p>
+            </div>
           ) : (
-            <div>
+            <div className="admin-content">
               {/* Session List */}
-              <div style={{ marginBottom: '30px' }}>
-                <h3>Recent Sessions</h3>
+              <div className="sessions-list">
+                <h3>📋 Recent Sessions</h3>
                 {sessions.map((session, idx) => {
-                  const getScoreColor = (score) => {
-                    if (score >= 90) return '#4caf50'  // Green
-                    if (score >= 70) return '#ff9800'  // Orange
-                    if (score >= 50) return '#ff5722'  // Red-Orange
-                    return '#f44336'  // Red
+                  const getScoreClass = (score) => {
+                    if (score >= 90) return 'excellent'
+                    if (score >= 70) return 'good'
+                    if (score >= 50) return 'fair'
+                    return 'poor'
                   }
 
                   return (
                     <div
                       key={idx}
                       onClick={() => selectSession(session.session_id)}
-                      style={{
-                        padding: '15px',
-                        marginBottom: '10px',
-                        border: selectedSession?.session_id === session.session_id ? '2px solid #2196F3' : '1px solid #e0e0e0',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        backgroundColor: selectedSession?.session_id === session.session_id ? '#f5f9ff' : '#fff',
-                        transition: 'all 0.2s',
-                        position: 'relative'
-                      }}
+                      className={`session-item ${selectedSession?.session_id === session.session_id ? 'selected' : ''}`}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
+                      <div className="session-content">
+                        <div className="session-info">
+                          <div className="session-title">
                             Session: {session.session_id}
                           </div>
-                          <div style={{ fontSize: '14px', color: '#666' }}>
-                            Time: {new Date(session.timestamp).toLocaleString()} |
-                            Detections: {session.total_detections} |
-                            Points: {session.stats.points} |
-                            Assists: {session.stats.assists}
+                          <div className="session-meta">
+                            <span>⏰ {new Date(session.timestamp).toLocaleString()}</span>
+                            <span>📊 Detections: {session.total_detections}</span>
+                            <span>🎯 Points: {session.stats.points}</span>
+                            <span>🤝 Assists: {session.stats.assists}</span>
                             {session.classifier_used && (
-                              <span> | Classifier: <strong>{session.classifier_used}</strong></span>
+                              <span className="classifier-tag">🔬 {session.classifier_used}</span>
                             )}
                           </div>
                         </div>
                         {session.evaluation && (
-                          <div style={{
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            backgroundColor: getScoreColor(session.evaluation.overall_score),
-                            color: 'white',
-                            fontWeight: 'bold',
-                            fontSize: '16px',
-                            marginLeft: '10px'
-                          }}>
+                          <div className={`score-badge ${getScoreClass(session.evaluation.overall_score)}`}>
                             {session.evaluation.overall_score}%
                           </div>
                         )}
@@ -342,99 +473,81 @@ export default function App() {
 
               {/* Selected Session Details */}
               {selectedSession && (
-                <div>
+                <div className="session-details">
                   {/* Evaluation Score Card */}
                   {selectedSession.evaluation && (
-                    <div style={{
-                      backgroundColor: '#f5f5f5',
-                      padding: '20px',
-                      borderRadius: '8px',
-                      marginBottom: '20px',
-                      border: '1px solid #e0e0e0'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '15px' }}>
-                        <h3 style={{ margin: 0, marginRight: '15px' }}>📊 Evaluation Metrics</h3>
-                        <span style={{
-                          padding: '8px 20px',
-                          borderRadius: '20px',
-                          backgroundColor: selectedSession.evaluation.overall_score >= 90 ? '#4caf50' :
-                                          selectedSession.evaluation.overall_score >= 70 ? '#ff9800' :
-                                          selectedSession.evaluation.overall_score >= 50 ? '#ff5722' : '#f44336',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          fontSize: '18px'
-                        }}>
+                    <div className="card evaluation-card">
+                      <div className="card-header">
+                        <h3>📊 Evaluation Metrics</h3>
+                        <div className={`score-badge large ${
+                          selectedSession.evaluation.overall_score >= 90 ? 'excellent' :
+                          selectedSession.evaluation.overall_score >= 70 ? 'good' :
+                          selectedSession.evaluation.overall_score >= 50 ? 'fair' : 'poor'
+                        }`}>
                           {selectedSession.evaluation.overall_score}%
-                        </span>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
-                        <div>
-                          <div style={{ fontSize: '12px', color: '#666' }}>Precision</div>
-                          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{selectedSession.evaluation.precision}%</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '12px', color: '#666' }}>Recall</div>
-                          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{selectedSession.evaluation.recall}%</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '12px', color: '#666' }}>F1 Score</div>
-                          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{selectedSession.evaluation.f1_score}%</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '12px', color: '#666' }}>Stats Accuracy</div>
-                          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{selectedSession.evaluation.stats_accuracy}%</div>
                         </div>
                       </div>
-                      <div style={{ marginTop: '15px', fontSize: '14px', color: '#666' }}>
-                        <span style={{ color: '#4caf50', fontWeight: 'bold' }}>✓ {selectedSession.evaluation.true_positives} TP</span>
-                        {' | '}
-                        <span style={{ color: '#ff5722', fontWeight: 'bold' }}>✗ {selectedSession.evaluation.false_positives} FP</span>
-                        {' | '}
-                        <span style={{ color: '#ff9800', fontWeight: 'bold' }}>⚠ {selectedSession.evaluation.false_negatives} FN</span>
+                      <div className="card-body">
+                        <div className="metrics-grid">
+                          <div className="metric-item">
+                            <div className="metric-label">Precision</div>
+                            <div className="metric-value">{selectedSession.evaluation.precision}%</div>
+                          </div>
+                          <div className="metric-item">
+                            <div className="metric-label">Recall</div>
+                            <div className="metric-value">{selectedSession.evaluation.recall}%</div>
+                          </div>
+                          <div className="metric-item">
+                            <div className="metric-label">F1 Score</div>
+                            <div className="metric-value">{selectedSession.evaluation.f1_score}%</div>
+                          </div>
+                          <div className="metric-item">
+                            <div className="metric-label">Stats Accuracy</div>
+                            <div className="metric-value">{selectedSession.evaluation.stats_accuracy}%</div>
+                          </div>
+                        </div>
+                        <div className="confusion-matrix">
+                          <span className="tp">✓ {selectedSession.evaluation.true_positives} TP</span>
+                          <span className="fp">✗ {selectedSession.evaluation.false_positives} FP</span>
+                          <span className="fn">⚠ {selectedSession.evaluation.false_negatives} FN</span>
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  <h3>Detection Frames</h3>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                    gap: '20px',
-                    marginTop: '20px'
-                  }}>
-                    {selectedSession.detections.map((det, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          border: '1px solid #e0e0e0',
-                          borderRadius: '8px',
-                          overflow: 'hidden',
-                          backgroundColor: det.classified_as.includes('IGNORED') ? '#fff8f0' :
-                                         det.classified_as.includes('SHOT') ? '#e8f5e9' :
-                                         det.classified_as.includes('ASSIST') ? '#e3f2fd' :
-                                         det.classified_as.includes('BLOCK') ? '#fce4ec' : '#fff'
-                        }}
-                      >
-                        {/* Frame Image */}
-                        <img
-                          src={`${config.API_BASE_URL}/detections/image/${det.frame_image}`}
-                          alt={`Detection at ${det.timestamp}s`}
-                          style={{ width: '100%', height: 'auto', display: 'block' }}
-                        />
-
-                        {/* Detection Info */}
-                        <div style={{ padding: '12px' }}>
-                          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px' }}>
-                            {det.classified_as}
+                  <div className="card detections-card">
+                    <div className="card-header">
+                      <h3>🎬 Detection Frames</h3>
+                    </div>
+                    <div className="card-body">
+                      <div className="detections-grid">
+                        {selectedSession.detections.map((det, idx) => (
+                          <div
+                            key={idx}
+                            className={`detection-card ${
+                              det.classified_as.includes('IGNORED') ? 'ignored' :
+                              det.classified_as.includes('SHOT') ? 'shot' :
+                              det.classified_as.includes('ASSIST') ? 'assist' :
+                              det.classified_as.includes('BLOCK') ? 'block' : ''
+                            }`}
+                          >
+                            <img
+                              src={`${config.API_BASE_URL}/detections/image/${det.frame_image}`}
+                              alt={`Detection at ${det.timestamp}s`}
+                              className="detection-image"
+                            />
+                            <div className="detection-info">
+                              <div className="detection-result">{det.classified_as}</div>
+                              <div className="detection-details">
+                                <div>⏱️ {det.timestamp}s (Frame {det.frame})</div>
+                                <div>🔍 {det.detected_action}</div>
+                                <div>📊 Confidence: {det.confidence}</div>
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ fontSize: '14px', color: '#666' }}>
-                            <div><strong>Time:</strong> {det.timestamp}s (Frame {det.frame})</div>
-                            <div><strong>Detected:</strong> {det.detected_action}</div>
-                            <div><strong>Confidence:</strong> {det.confidence}</div>
-                          </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -442,6 +555,7 @@ export default function App() {
           )}
         </div>
       )}
+      </div>
     </div>
   )
 }
