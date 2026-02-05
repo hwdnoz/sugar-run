@@ -10,31 +10,8 @@ from utils import config, storage
 logger = logging.getLogger(__name__)
 
 
-def analyze_video(video_path, classifier_type='videomae'):
-    """
-    Orchestrate video analysis pipeline
-
-    Steps:
-    1. Extract clips from video
-    2. Classify each clip
-    3. Calculate basketball stats
-    4. Save results
-    """
-    logger.info(f"Opening video file: {video_path}")
-    logger.info(f"Using classifier: {classifier_type}")
-
-    # Create classifier with factory
-    classifier = ClassifierFactory.create(classifier_type)
-    if not classifier.is_ready():
-        raise RuntimeError(f"Classifier {classifier_type} failed to initialize")
-
-    # Extract video clips
-    logger.info("Extracting video clips...")
-    clips, fps = video_extraction_service.extract_clips(video_path)
-    logger.info(f"Extracted {len(clips)} clips (FPS: {fps:.2f})")
-
-    # Process each clip
-    session_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+def process_clips(clips, fps, classifier, session_id):
+    """Process video clips and return detected actions"""
     basketball_actions = classifier.get_basketball_stats_mapping()
     detected_actions = []
 
@@ -42,7 +19,6 @@ def analyze_video(video_path, classifier_type='videomae'):
         if i % 5 == 0:
             logger.info(f"Processing clip {i+1}/{len(clips)} (frame {start_frame})")
 
-        # Classify action
         result = classifier.classify(clip_frames)
         if result.action and result.confidence > config.CONFIDENCE_THRESHOLD_DETECTION:
             timestamp = start_frame / fps
@@ -62,10 +38,11 @@ def analyze_video(video_path, classifier_type='videomae'):
 
             logger.info(f"Detected '{result.action}' (confidence: {result.confidence:.2f}) at {timestamp:.2f}s")
 
-    # Calculate stats
-    stats, detected_actions = stats_calculation_service.calculate_stats(detected_actions, basketball_actions)
+    return detected_actions, basketball_actions
 
-    # Format detection details
+
+def build_session_data(session_id, clips, fps, classifier, detected_actions, stats):
+    """Build session data object for storage"""
     detection_details = []
     for det in detected_actions:
         detection_details.append({
@@ -78,8 +55,7 @@ def analyze_video(video_path, classifier_type='videomae'):
             'session_id': session_id
         })
 
-    # Save session
-    session_data = {
+    return {
         'session_id': session_id,
         'timestamp': datetime.now().isoformat(),
         'video_duration': round(len(clips) * config.CLIP_DURATION / fps, 2) if fps > 0 else 0,
@@ -88,14 +64,33 @@ def analyze_video(video_path, classifier_type='videomae'):
         'stats': stats,
         'detections': detection_details
     }
+
+
+def analyze_video(video_path, classifier_type='videomae'):
+    """Orchestrate video analysis pipeline"""
+    logger.info(f"Opening video file: {video_path}")
+    logger.info(f"Using classifier: {classifier_type}")
+
+    classifier = ClassifierFactory.create(classifier_type)
+    if not classifier.is_ready():
+        raise RuntimeError(f"Classifier {classifier_type} failed to initialize")
+
+    logger.info("Extracting video clips...")
+    clips, fps = video_extraction_service.extract_clips(video_path)
+    logger.info(f"Extracted {len(clips)} clips (FPS: {fps:.2f})")
+
+    session_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+    detected_actions, basketball_actions = process_clips(clips, fps, classifier, session_id)
+
+    stats, detected_actions = stats_calculation_service.calculate_stats(detected_actions, basketball_actions)
+
+    session_data = build_session_data(session_id, clips, fps, classifier, detected_actions, stats)
     storage.create_session(session_data)
     logger.info(f"Saved session {session_id}")
 
-    # Log summary
     logger.info(f"Analysis complete. Detected {len(detected_actions)} events")
     logger.info(f"Stats: Points={stats['points']}, Assists={stats['assists']}, Blocks={stats['blocks']}")
 
-    # Return for API response
-    stats['detections'] = detection_details
+    stats['detections'] = session_data['detections']
     stats['session_id'] = session_id
     return stats
