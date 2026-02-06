@@ -5,7 +5,8 @@ from datetime import datetime
 
 from services.classifiers import ClassifierFactory
 from services import video_extraction_service, stats_calculation_service
-from utils import config, storage
+from utils import config
+from utils.storage import SessionStorage, FrameStorage
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ def process_clips(clips, fps, classifier, session_id):
             # Save middle frame
             middle_frame_idx = len(clip_frames) // 2
             middle_frame_bgr = cv2.cvtColor(clip_frames[middle_frame_idx], cv2.COLOR_RGB2BGR)
-            frame_filename = storage.create_frame(session_id, start_frame, middle_frame_bgr)
+            frame_filename = FrameStorage.create(session_id, start_frame, middle_frame_bgr)
 
             detected_actions.append({
                 'frame': start_frame,
@@ -85,7 +86,7 @@ def analyze_video(video_path, classifier_type='videomae'):
     stats, detected_actions = stats_calculation_service.calculate_stats(detected_actions, basketball_actions)
 
     session_data = build_session_data(session_id, clips, fps, classifier, detected_actions, stats)
-    storage.create_session(session_data)
+    SessionStorage.create(session_data)
     logger.info(f"Saved session {session_id}")
 
     logger.info(f"Analysis complete. Detected {len(detected_actions)} events")

@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 
 from services import request_service
-from utils import storage
+from utils.storage import SessionStorage, FrameStorage
 
 # Configure logging
 logging.basicConfig(
@@ -60,7 +60,7 @@ def list_classifiers():
 def list_detections():
     """List all sessions"""
     try:
-        sessions = storage.list_sessions()
+        sessions = SessionStorage.list_all()
         return jsonify({'sessions': sessions})
     except Exception as e:
         logger.error(f"Error: {e}", exc_info=True)
@@ -70,7 +70,7 @@ def list_detections():
 def get_detection_session(session_id):
     """Get specific session"""
     try:
-        session = storage.get_session(session_id)
+        session = SessionStorage.get(session_id)
         if not session:
             return jsonify({'error': 'Session not found'}), 404
         return jsonify(session)
@@ -82,7 +82,7 @@ def get_detection_session(session_id):
 def get_detection_image(filename):
     """Serve frame image"""
     try:
-        image_path = storage.get_frame_path(filename)
+        image_path = FrameStorage.get_path(filename)
         return send_file(image_path, mimetype='image/jpeg')
     except FileNotFoundError:
         return jsonify({'error': 'Image not found'}), 404

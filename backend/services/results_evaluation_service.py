@@ -7,7 +7,7 @@ import traceback
 from datetime import datetime
 from typing import Dict, List, Tuple
 
-from utils import storage
+from utils.storage import SessionStorage
 
 
 class EvaluationResult:
@@ -50,7 +50,7 @@ def load_ground_truth(video_name: str) -> Dict:
 
 def load_session_results(session_id: str) -> Dict:
     """Load detection results from session storage"""
-    session = storage.get_session(session_id)
+    session = SessionStorage.get(session_id)
     if not session:
         raise FileNotFoundError(f"Session not found: {session_id}")
     return session
@@ -236,7 +236,7 @@ def save_evaluation_results(ground_truth: Dict, session_results: Dict,
         'false_positives': score['false_positives'],
         'false_negatives': score['false_negatives']
     }
-    storage.update_session(session_results['session_id'], {'evaluation': eval_data})
+    SessionStorage.update(session_results['session_id'], {'evaluation': eval_data})
     print(f"📁 Evaluation added to session {session_results['session_id']}")
 
 
