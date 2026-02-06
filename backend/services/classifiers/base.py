@@ -66,25 +66,8 @@ class ActionClassifier(ABC):
         """Name of the classifier"""
         pass
 
-    def get_basketball_stats_mapping(self) -> Dict[str, List[str]]:
-        """
-        Get mapping of basketball actions to keywords
-        Can be overridden by subclasses for custom mappings
 
-        Returns:
-            Dictionary mapping action types to keyword lists
-        """
-        return {
-            'shooting': ['shooting', 'throw', 'toss'],
-            'passing': ['passing', 'hand', 'throw'],
-            'dribbling': ['dribbling', 'bounce'],
-            'dunking': ['dunk', 'slam'],
-            'blocking': ['block', 'defend'],
-            'catching': ['catch', 'grab']
-        }
-
-
-def register_classifier(name: str, display_name: str = None, description: str = None, link: str = None):
+def register_classifier(name: str, display_name: str = None, description: str = None, link: str = None, action_keywords: Dict[str, List[str]] = None):
     """
     Decorator to register a classifier class with the registry.
 
@@ -97,9 +80,9 @@ def register_classifier(name: str, display_name: str = None, description: str = 
         metadata = {
             'name': display_name or name,
             'description': description or '',
-            'link': link or ''
+            'link': link or '',
         }
-        ClassifierRegistry.register(name, cls, metadata)
+        ClassifierRegistry.register(name, cls, metadata, action_keywords)
         return cls
     return decorator
 
@@ -114,9 +97,10 @@ class ClassifierRegistry:
 
     _registry: Dict[str, Callable[[], 'ActionClassifier']] = {}
     _metadata: Dict[str, Dict[str, str]] = {}
+    _action_keywords: Dict[str, Dict[str, List[str]]] = {}
 
     @classmethod
-    def register(cls, name: str, factory: Callable[[], 'ActionClassifier'], metadata: Dict[str, str] = None) -> None:
+    def register(cls, name: str, factory: Callable[[], 'ActionClassifier'], metadata: Dict[str, str] = None, action_keywords: Dict[str, List[str]] = None) -> None:
         """
         Register a classifier factory function.
 
@@ -124,9 +108,12 @@ class ClassifierRegistry:
             name: Unique identifier for the classifier (e.g., 'videomae', 'yolo')
             factory: Callable that returns a new classifier instance
             metadata: Optional metadata (name, description, link)
+            action_keywords: Optional classifier-specific action keyword mapping
         """
         cls._registry[name] = factory
         cls._metadata[name] = metadata or {}
+        if action_keywords:
+            cls._action_keywords[name] = action_keywords
         logger.debug(f"Registered classifier: {name}")
 
     @classmethod
@@ -165,6 +152,11 @@ class ClassifierRegistry:
             {'id': name, **cls._metadata.get(name, {})}
             for name in cls._registry.keys()
         ]
+
+    @classmethod
+    def get_action_keywords(cls, name: str) -> Optional[Dict[str, List[str]]]:
+        """Get classifier-specific action keywords, or None for defaults."""
+        return cls._action_keywords.get(name)
 
 
 class ClassifierFactory:

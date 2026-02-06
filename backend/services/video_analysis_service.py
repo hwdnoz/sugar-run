@@ -3,17 +3,22 @@ import cv2
 import logging
 from datetime import datetime
 
-from services.classifiers import ClassifierFactory
+from services.classifiers import ClassifierFactory, ClassifierRegistry
 from services import video_extraction_service, stats_calculation_service
+from services.stats_calculation_service import DEFAULT_ACTION_KEYWORDS
 from utils import config
 from utils.storage import SessionStorage, FrameStorage
 
 logger = logging.getLogger(__name__)
 
 
+def get_action_keywords(classifier_type):
+    """Get action keywords for a classifier, falling back to defaults"""
+    return ClassifierRegistry.get_action_keywords(classifier_type) or DEFAULT_ACTION_KEYWORDS
+
+
 def process_clips(clips, fps, classifier):
     """Process video clips and return detected actions with frames"""
-    basketball_actions = classifier.get_basketball_stats_mapping()
     detected_actions = []
 
     for i, (start_frame, clip_frames) in enumerate(clips):
@@ -38,7 +43,7 @@ def process_clips(clips, fps, classifier):
 
             logger.info(f"Detected '{result.action}' (confidence: {result.confidence:.2f}) at {timestamp:.2f}s")
 
-    return detected_actions, basketball_actions
+    return detected_actions
 
 
 def save_action_frames(session_id, detected_actions):
@@ -88,11 +93,12 @@ def analyze_video(video_path, classifier_type='videomae'):
     logger.info(f"Extracted {len(clips)} clips (FPS: {fps:.2f})")
 
     session_id = datetime.now().strftime('%Y%m%d_%H%M%S')
-    detected_actions, basketball_actions = process_clips(clips, fps, classifier)
+    detected_actions = process_clips(clips, fps, classifier)
 
     save_action_frames(session_id, detected_actions)
 
-    stats, detected_actions = stats_calculation_service.calculate_stats(detected_actions, basketball_actions)
+    action_keywords = get_action_keywords(classifier_type)
+    stats, detected_actions = stats_calculation_service.calculate_stats(detected_actions, action_keywords)
 
     session_data = build_session_data(session_id, clips, fps, classifier, detected_actions, stats)
     SessionStorage.create(session_data)

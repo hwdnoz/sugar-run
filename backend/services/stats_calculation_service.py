@@ -1,10 +1,19 @@
 """Basketball stats calculation - scoring logic for different actions"""
 import logging
 from dataclasses import dataclass
-from typing import List, Callable
+from typing import Dict, List, Callable
 from utils import config
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_ACTION_KEYWORDS = {
+    'shooting': ['shooting', 'throw', 'toss'],
+    'passing': ['passing', 'hand', 'throw'],
+    'dribbling': ['dribbling', 'bounce'],
+    'dunking': ['dunk', 'slam'],
+    'blocking': ['block', 'defend'],
+    'catching': ['catch', 'grab'],
+}
 
 
 @dataclass

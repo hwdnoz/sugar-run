@@ -16,7 +16,15 @@ logger = logging.getLogger(__name__)
     'yolo',
     'Ultralytics YOLOv8',
     'Ball tracking & trajectory inference',
-    'https://docs.ultralytics.com/models/yolov8/'
+    'https://docs.ultralytics.com/models/yolov8/',
+    action_keywords={
+        'shooting': ['shooting', 'throw', 'shot'],
+        'passing': ['passing', 'pass'],
+        'dribbling': ['dribbling', 'dribble'],
+        'dunking': ['dunk', 'slam'],
+        'blocking': ['block', 'defend'],
+        'catching': ['catching', 'catch'],
+    }
 )
 class YOLOBallTrackingClassifier(ActionClassifier):
     """
@@ -211,13 +219,3 @@ class YOLOBallTrackingClassifier(ActionClassifier):
             logger.error(f"Error in YOLO classification: {e}")
             return ClassificationResult(action="error", confidence=0.0)
 
-    def get_basketball_stats_mapping(self):
-        """Override with YOLO-specific action keywords"""
-        return {
-            'shooting': ['shooting', 'throw', 'shot'],
-            'passing': ['passing', 'pass'],
-            'dribbling': ['dribbling', 'dribble'],
-            'dunking': ['dunk', 'slam'],
-            'blocking': ['block', 'defend'],
-            'catching': ['catching', 'catch']
-        }
