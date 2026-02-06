@@ -12,7 +12,12 @@ from utils import config
 logger = logging.getLogger(__name__)
 
 
-@register_classifier('videomae')
+@register_classifier(
+    'videomae',
+    'Meta VideoMAE',
+    'Video Masked Autoencoder',
+    'https://huggingface.co/docs/transformers/model_doc/videomae'
+)
 class VideoMAEClassifier(ActionClassifier):
     """Action classifier using VideoMAE model"""
 

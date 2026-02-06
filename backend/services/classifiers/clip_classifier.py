@@ -12,7 +12,12 @@ from .base import ActionClassifier, ClassificationResult, register_classifier
 logger = logging.getLogger(__name__)
 
 
-@register_classifier('clip')
+@register_classifier(
+    'clip',
+    'OpenAI CLIP',
+    'Zero-shot vision-language model',
+    'https://huggingface.co/docs/transformers/model_doc/clip'
+)
 class CLIPZeroShotClassifier(ActionClassifier):
     """Zero-shot action classifier using CLIP"""
 

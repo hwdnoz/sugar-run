@@ -11,7 +11,12 @@ from .base import ActionClassifier, ClassificationResult, register_classifier
 logger = logging.getLogger(__name__)
 
 
-@register_classifier('slowfast')
+@register_classifier(
+    'slowfast',
+    'Meta SlowFast',
+    'Dual-pathway network',
+    'https://paperswithcode.com/method/slowfast'
+)
 class SlowFastClassifier(ActionClassifier):
     """Action classifier using SlowFast model from PyTorchVideo"""
 

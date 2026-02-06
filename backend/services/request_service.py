@@ -3,61 +3,16 @@ import os
 import logging
 from services.video_analysis_service import analyze_video
 from services.results_evaluation_service import run_evaluation
+from services.classifiers import ClassifierRegistry
 from utils import config
 
 logger = logging.getLogger(__name__)
 
-VALID_CLASSIFIERS = ['videomae', 'yolo', 'timesformer', 'x3d', 'clip', 'vivit', 'slowfast']
-
-CLASSIFIER_INFO = [
-    {
-        'id': 'videomae',
-        'name': 'Meta VideoMAE',
-        'description': 'Video Masked Autoencoder',
-        'link': 'https://huggingface.co/docs/transformers/model_doc/videomae'
-    },
-    {
-        'id': 'yolo',
-        'name': 'Ultralytics YOLOv8',
-        'description': 'Ball tracking & trajectory inference',
-        'link': 'https://docs.ultralytics.com/models/yolov8/'
-    },
-    {
-        'id': 'timesformer',
-        'name': 'Meta TimesFormer',
-        'description': 'Space-time attention transformer',
-        'link': 'https://huggingface.co/docs/transformers/model_doc/timesformer'
-    },
-    {
-        'id': 'x3d',
-        'name': 'Meta X3D',
-        'description': 'Efficient 3D CNN',
-        'link': 'https://paperswithcode.com/method/x3d'
-    },
-    {
-        'id': 'clip',
-        'name': 'OpenAI CLIP',
-        'description': 'Zero-shot vision-language model',
-        'link': 'https://huggingface.co/docs/transformers/model_doc/clip'
-    },
-    {
-        'id': 'vivit',
-        'name': 'Google ViViT',
-        'description': 'Video Vision Transformer',
-        'link': 'https://huggingface.co/docs/transformers/model_doc/vivit'
-    },
-    {
-        'id': 'slowfast',
-        'name': 'Meta SlowFast',
-        'description': 'Dual-pathway network',
-        'link': 'https://paperswithcode.com/method/slowfast'
-    }
-]
-
 def validate_classifier(classifier_type):
     """Validate classifier type"""
-    if classifier_type not in VALID_CLASSIFIERS:
-        raise ValueError(f'Invalid classifier: {classifier_type}. Must be {" or ".join(VALID_CLASSIFIERS)}')
+    if not ClassifierRegistry.is_registered(classifier_type):
+        available = ', '.join(ClassifierRegistry.available())
+        raise ValueError(f'Invalid classifier: {classifier_type}. Available: {available}')
 
 def save_temp_video(video_file):
     """Save uploaded video to temporary location, return path"""
@@ -113,4 +68,4 @@ def process_video_upload(video_file, filename, classifier_type):
 
 def get_classifiers():
     """Get list of available classifiers"""
-    return CLASSIFIER_INFO
+    return ClassifierRegistry.get_info()

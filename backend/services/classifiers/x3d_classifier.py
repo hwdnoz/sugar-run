@@ -11,7 +11,12 @@ from .base import ActionClassifier, ClassificationResult, register_classifier
 logger = logging.getLogger(__name__)
 
 
-@register_classifier('x3d')
+@register_classifier(
+    'x3d',
+    'Meta X3D',
+    'Efficient 3D CNN',
+    'https://paperswithcode.com/method/x3d'
+)
 class X3DClassifier(ActionClassifier):
     """Action classifier using X3D model from PyTorchVideo"""
 

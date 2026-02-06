@@ -11,7 +11,12 @@ from .base import ActionClassifier, ClassificationResult, register_classifier
 logger = logging.getLogger(__name__)
 
 
-@register_classifier('timesformer')
+@register_classifier(
+    'timesformer',
+    'Meta TimesFormer',
+    'Space-time attention transformer',
+    'https://huggingface.co/docs/transformers/model_doc/timesformer'
+)
 class TimesFormerClassifier(ActionClassifier):
     """Action classifier using TimesFormer model"""
 

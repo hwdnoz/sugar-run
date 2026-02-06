@@ -84,17 +84,22 @@ class ActionClassifier(ABC):
         }
 
 
-def register_classifier(name: str):
+def register_classifier(name: str, display_name: str = None, description: str = None, link: str = None):
     """
     Decorator to register a classifier class with the registry.
 
     Usage:
-        @register_classifier('videomae')
+        @register_classifier('videomae', 'Meta VideoMAE', 'Video Masked Autoencoder')
         class VideoMAEClassifier(ActionClassifier):
             ...
     """
     def decorator(cls: Type['ActionClassifier']) -> Type['ActionClassifier']:
-        ClassifierRegistry.register(name, cls)
+        metadata = {
+            'name': display_name or name,
+            'description': description or '',
+            'link': link or ''
+        }
+        ClassifierRegistry.register(name, cls, metadata)
         return cls
     return decorator
 
@@ -108,17 +113,20 @@ class ClassifierRegistry:
     """
 
     _registry: Dict[str, Callable[[], 'ActionClassifier']] = {}
+    _metadata: Dict[str, Dict[str, str]] = {}
 
     @classmethod
-    def register(cls, name: str, factory: Callable[[], 'ActionClassifier']) -> None:
+    def register(cls, name: str, factory: Callable[[], 'ActionClassifier'], metadata: Dict[str, str] = None) -> None:
         """
         Register a classifier factory function.
 
         Args:
             name: Unique identifier for the classifier (e.g., 'videomae', 'yolo')
             factory: Callable that returns a new classifier instance
+            metadata: Optional metadata (name, description, link)
         """
         cls._registry[name] = factory
+        cls._metadata[name] = metadata or {}
         logger.debug(f"Registered classifier: {name}")
 
     @classmethod
@@ -149,6 +157,14 @@ class ClassifierRegistry:
     def is_registered(cls, name: str) -> bool:
         """Check if a classifier is registered."""
         return name in cls._registry
+
+    @classmethod
+    def get_info(cls) -> List[Dict[str, str]]:
+        """Return list of classifier info with metadata."""
+        return [
+            {'id': name, **cls._metadata.get(name, {})}
+            for name in cls._registry.keys()
+        ]
 
 
 class ClassifierFactory:

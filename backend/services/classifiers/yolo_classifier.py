@@ -12,7 +12,12 @@ from utils import config
 logger = logging.getLogger(__name__)
 
 
-@register_classifier('yolo')
+@register_classifier(
+    'yolo',
+    'Ultralytics YOLOv8',
+    'Ball tracking & trajectory inference',
+    'https://docs.ultralytics.com/models/yolov8/'
+)
 class YOLOBallTrackingClassifier(ActionClassifier):
     """
     Action classifier using YOLO ball tracking and position analysis

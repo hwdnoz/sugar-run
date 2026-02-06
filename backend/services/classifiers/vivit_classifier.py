@@ -11,7 +11,12 @@ from .base import ActionClassifier, ClassificationResult, register_classifier
 logger = logging.getLogger(__name__)
 
 
-@register_classifier('vivit')
+@register_classifier(
+    'vivit',
+    'Google ViViT',
+    'Video Vision Transformer',
+    'https://huggingface.co/docs/transformers/model_doc/vivit'
+)
 class ViViTClassifier(ActionClassifier):
     """Action classifier using ViViT (Video Vision Transformer) model"""
 
