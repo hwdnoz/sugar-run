@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { api } from '../api'
+import { api as defaultApi } from '../api'
 
-export function useClassifiers() {
+export function useClassifiers(api = defaultApi) {
   const [classifiers, setClassifiers] = useState([])
   const [selectedClassifier, setSelectedClassifier] = useState('videomae')
 

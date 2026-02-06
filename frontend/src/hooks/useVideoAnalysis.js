@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { api } from '../api'
+import { api as defaultApi } from '../api'
 
-export function useVideoAnalysis() {
+export function useVideoAnalysis(api = defaultApi) {
   const [loading, setLoading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [stats, setStats] = useState(null)

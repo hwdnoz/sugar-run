@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { api } from '../api'
+import { api as defaultApi } from '../api'
 
-export function useSessions(currentView) {
+export function useSessions(currentView, api = defaultApi) {
   const [sessions, setSessions] = useState([])
   const [selectedSession, setSelectedSession] = useState(null)
 
