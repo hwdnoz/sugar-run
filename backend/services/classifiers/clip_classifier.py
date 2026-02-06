@@ -35,7 +35,6 @@ class CLIPZeroShotClassifier(ActionClassifier):
             "a person dunking a basketball",
             "a person blocking a basketball shot",
             "a person catching a basketball",
-            "a person playing basketball",
         ]
 
     @property
@@ -93,21 +92,13 @@ class CLIPZeroShotClassifier(ActionClassifier):
             with torch.no_grad():
                 outputs = self.model(**inputs)
 
-                # Get image and text features
-                image_embeds = outputs.image_embeds  # [num_frames, embed_dim]
-                text_embeds = outputs.text_embeds    # [num_prompts, embed_dim]
+                # logits_per_image: [num_images, num_prompts] with learned temperature
+                logits_per_image = outputs.logits_per_image  # [num_frames, num_prompts]
 
-                # Average frame embeddings
-                avg_image_embed = image_embeds.mean(dim=0, keepdim=True)
+                # Average logits across sampled frames
+                avg_logits = logits_per_image.mean(dim=0, keepdim=True)
 
-                # Calculate similarity scores
-                similarity = torch.nn.functional.cosine_similarity(
-                    avg_image_embed.unsqueeze(1),
-                    text_embeds.unsqueeze(0),
-                    dim=2
-                )
-
-                probs = torch.nn.functional.softmax(similarity * 100, dim=-1)
+                probs = torch.nn.functional.softmax(avg_logits, dim=-1)
                 predicted_idx = probs.argmax(-1).item()
                 confidence = probs[0][predicted_idx].item()
 

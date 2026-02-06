@@ -188,7 +188,8 @@ class ClassifierFactory:
             logger.info(f"Initializing {classifier_type} classifier...")
             factory_fn = ClassifierRegistry.get(classifier_type)
             instance = factory_fn()
-            instance.initialize()
+            if not instance.initialize():
+                raise RuntimeError(f"Classifier '{classifier_type}' failed to initialize")
             cls._instances[classifier_type] = instance
 
         return cls._instances[classifier_type]
