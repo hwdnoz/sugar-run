@@ -1,12 +1,62 @@
 """Basketball stats calculation - scoring logic for different actions"""
 import logging
+from dataclasses import dataclass
+from typing import List, Callable
 from utils import config
 
 logger = logging.getLogger(__name__)
 
+
+@dataclass
+class ScoringRule:
+    """Rule for matching actions and calculating stats"""
+    stat_name: str
+    points_value: int
+    label: str
+    confidence_threshold: float
+    keyword_getter: Callable[[dict], List[str]]
+
+    def matches(self, action_lower: str, basketball_actions: dict) -> bool:
+        """Check if action matches this rule's keywords"""
+        keywords = self.keyword_getter(basketball_actions)
+        return any(keyword in action_lower for keyword in keywords)
+
+    def apply(self, stats: dict, classified_as: list) -> None:
+        """Apply rule: update stats and add classification label"""
+        stats[self.stat_name] += self.points_value
+        classified_as.append(self.label)
+        logger.info(f"  -> Counted as {self.label}! Total {self.stat_name}: {stats[self.stat_name]}")
+
+
+# Define scoring rules (open for extension - just add new rules!)
+SCORING_RULES = [
+    ScoringRule(
+        stat_name='points',
+        points_value=2,
+        label='SHOT (+2 points)',
+        confidence_threshold=config.CONFIDENCE_THRESHOLD_SHOT,
+        keyword_getter=lambda ba: ba['shooting'] + ba['dunking']
+    ),
+    ScoringRule(
+        stat_name='assists',
+        points_value=1,
+        label='ASSIST (+1)',
+        confidence_threshold=config.CONFIDENCE_THRESHOLD_ASSIST,
+        keyword_getter=lambda ba: ba['passing']
+    ),
+    ScoringRule(
+        stat_name='blocks',
+        points_value=1,
+        label='BLOCK (+1)',
+        confidence_threshold=config.CONFIDENCE_THRESHOLD_BLOCK,
+        keyword_getter=lambda ba: ba['blocking']
+    ),
+]
+
+
 def calculate_stats(detections, basketball_actions):
     """
-    Calculate basketball stats from detected actions
+    Calculate basketball stats from detected actions using scoring rules
 
     Args:
         detections: List of detected actions with 'action' and 'confidence'
@@ -24,31 +74,14 @@ def calculate_stats(detections, basketball_actions):
     }
 
     for detection in detections:
-        action_label = detection['action']
+        action_lower = detection['action'].lower()
         confidence = detection['confidence']
-        action_lower = action_label.lower()
         classified_as = []
 
-        # Check for shots
-        if any(keyword in action_lower for keyword in basketball_actions['shooting'] + basketball_actions['dunking']):
-            if confidence > config.CONFIDENCE_THRESHOLD_SHOT:
-                stats['points'] += 2
-                classified_as.append('SHOT (+2 points)')
-                logger.info(f"  -> Counted as SHOT! Total points: {stats['points']}")
-
-        # Check for assists
-        if any(keyword in action_lower for keyword in basketball_actions['passing']):
-            if confidence > config.CONFIDENCE_THRESHOLD_ASSIST:
-                stats['assists'] += 1
-                classified_as.append('ASSIST (+1)')
-                logger.info(f"  -> Counted as ASSIST! Total assists: {stats['assists']}")
-
-        # Check for blocks
-        if any(keyword in action_lower for keyword in basketball_actions['blocking']):
-            if confidence > config.CONFIDENCE_THRESHOLD_BLOCK:
-                stats['blocks'] += 1
-                classified_as.append('BLOCK (+1)')
-                logger.info(f"  -> Counted as BLOCK! Total blocks: {stats['blocks']}")
+        for rule in SCORING_RULES:
+            if rule.matches(action_lower, basketball_actions):
+                if confidence > rule.confidence_threshold:
+                    rule.apply(stats, classified_as)
 
         detection['classified_as'] = ', '.join(classified_as) if classified_as else 'IGNORED (below threshold or no match)'
 
