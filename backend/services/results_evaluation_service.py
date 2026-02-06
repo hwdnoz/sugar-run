@@ -277,9 +277,37 @@ def main():
         sys.exit(1)
 
 
+def evaluate_session(video_name: str, session_id: str) -> Dict:
+    """
+    Pure evaluation function that returns results without side effects.
+
+    Args:
+        video_name: Name of the video file (e.g., 'trim.mp4')
+        session_id: Session ID of the detection results
+
+    Returns:
+        Dictionary containing the evaluation results
+
+    Raises:
+        FileNotFoundError: If ground truth or session not found
+    """
+    ground_truth = load_ground_truth(video_name)
+    session_results = load_session_results(session_id)
+
+    result = evaluate_detections(ground_truth, session_results)
+    score = calculate_score(result, ground_truth)
+
+    return {
+        'ground_truth': ground_truth,
+        'session_results': session_results,
+        'result': result,
+        'score': score
+    }
+
+
 def run_evaluation(video_name: str, session_id: str, silent: bool = False) -> Dict:
     """
-    Programmatic evaluation function that can be called from other modules.
+    CLI-friendly evaluation function with printing and persistence.
 
     Args:
         video_name: Name of the video file (e.g., 'trim.mp4')
@@ -287,41 +315,44 @@ def run_evaluation(video_name: str, session_id: str, silent: bool = False) -> Di
         silent: If True, suppress print statements
 
     Returns:
-        Dictionary containing the score and evaluation results, or None if evaluation cannot be performed
+        Dictionary containing the score and evaluation results, or error info
     """
     try:
-        # Load data
+        # Load and evaluate
         if not silent:
             print(f"\n🔍 Loading ground truth for {video_name}...")
-        ground_truth = load_ground_truth(video_name)
-
-        if not silent:
             print(f"📊 Loading session results for {session_id}...")
-        session_results = load_session_results(session_id)
-
-        # Evaluate
-        if not silent:
             print("⚙️  Evaluating...")
-        result = evaluate_detections(ground_truth, session_results)
-        score = calculate_score(result, ground_truth)
+
+        evaluation = evaluate_session(video_name, session_id)
 
         # Report
         if not silent:
-            print_evaluation_report(ground_truth, session_results, result, score)
+            print_evaluation_report(
+                evaluation['ground_truth'],
+                evaluation['session_results'],
+                evaluation['result'],
+                evaluation['score']
+            )
 
         # Save
-        save_evaluation_results(ground_truth, session_results, result, score)
+        save_evaluation_results(
+            evaluation['ground_truth'],
+            evaluation['session_results'],
+            evaluation['result'],
+            evaluation['score']
+        )
         if not silent:
-            print(f"✅ Evaluation complete! Overall score: {score['overall_score']}%")
+            print(f"✅ Evaluation complete! Overall score: {evaluation['score']['overall_score']}%")
 
         return {
             'success': True,
-            'score': score,
-            'true_positives': result.true_positives,
-            'false_positives': result.false_positives,
-            'false_negatives': result.false_negatives,
-            'stats_correct': result.stats_correct,
-            'stats_errors': result.stats_errors
+            'score': evaluation['score'],
+            'true_positives': evaluation['result'].true_positives,
+            'false_positives': evaluation['result'].false_positives,
+            'false_negatives': evaluation['result'].false_negatives,
+            'stats_correct': evaluation['result'].stats_correct,
+            'stats_errors': evaluation['result'].stats_errors
         }
 
     except FileNotFoundError as e:
