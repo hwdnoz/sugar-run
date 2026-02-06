@@ -54,24 +54,34 @@ def save_action_frames(session_id, detected_actions):
         del action['frame_data']  # Remove frame data after saving
 
 
+def format_detection(det, session_id):
+    """Transform a raw detection into the storage format"""
+    return {
+        'timestamp': round(det['timestamp'], 2),
+        'frame': det['frame'],
+        'detected_action': det['action'],
+        'confidence': round(det['confidence'], 3),
+        'classified_as': det['classified_as'],
+        'frame_image': det['frame_image'],
+        'session_id': session_id
+    }
+
+
+def calculate_video_duration(num_clips, fps):
+    """Calculate video duration from clip count and frame rate"""
+    if fps <= 0:
+        return 0
+    return round(num_clips * config.CLIP_DURATION / fps, 2)
+
+
 def build_session_data(session_id, clips, fps, classifier, detected_actions, stats):
     """Build session data object for storage"""
-    detection_details = []
-    for det in detected_actions:
-        detection_details.append({
-            'timestamp': round(det['timestamp'], 2),
-            'frame': det['frame'],
-            'detected_action': det['action'],
-            'confidence': round(det['confidence'], 3),
-            'classified_as': det['classified_as'],
-            'frame_image': det['frame_image'],
-            'session_id': session_id
-        })
+    detection_details = [format_detection(det, session_id) for det in detected_actions]
 
     return {
         'session_id': session_id,
         'timestamp': datetime.now().isoformat(),
-        'video_duration': round(len(clips) * config.CLIP_DURATION / fps, 2) if fps > 0 else 0,
+        'video_duration': calculate_video_duration(len(clips), fps),
         'total_detections': len(detection_details),
         'classifier_used': classifier.name,
         'stats': stats,
