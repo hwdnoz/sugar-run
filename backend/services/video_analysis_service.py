@@ -105,7 +105,8 @@ def analyze_video(video_path, classifier_type='videomae'):
     logger.info(f"Saved session {session_id}")
 
     logger.info(f"Analysis complete. Detected {len(detected_actions)} events")
-    logger.info(f"Stats: Points={stats['points']}, Assists={stats['assists']}, Blocks={stats['blocks']}")
+    stats_summary = ', '.join(f"{k.capitalize()}={v}" for k, v in stats.items())
+    logger.info(f"Stats: {stats_summary}")
 
     stats['detections'] = session_data['detections']
     stats['session_id'] = session_id

@@ -16,7 +16,7 @@ export default function InstructionsCard() {
           </li>
           <li>
             <strong>Get Analysis</strong>
-            <p>View detailed box scores including points, assists, steals, blocks, and rebounds</p>
+            <p>View detailed box scores with detected basketball statistics</p>
           </li>
         </ol>
         <div className="demo-hint">

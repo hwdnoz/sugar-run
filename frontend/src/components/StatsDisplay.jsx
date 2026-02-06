@@ -1,5 +1,19 @@
+const STAT_ICONS = {
+  points: '🎯',
+  assists: '🤝',
+  blocks: '🚫',
+}
+
+const KNOWN_NON_STAT_KEYS = new Set([
+  'detections', 'session_id', 'classifier_used',
+])
+
 export default function StatsDisplay({ stats, selectedClassifier }) {
   if (!stats) return null
+
+  const statEntries = Object.entries(stats).filter(
+    ([key]) => !KNOWN_NON_STAT_KEYS.has(key) && typeof stats[key] === 'number'
+  )
 
   return (
     <div className="card stats-card">
@@ -11,31 +25,13 @@ export default function StatsDisplay({ stats, selectedClassifier }) {
       </div>
       <div className="card-body">
         <div className="stats-grid">
-          <div className="stat-box points">
-            <div className="stat-icon">🎯</div>
-            <div className="stat-value">{stats.points}</div>
-            <div className="stat-label">Points</div>
-          </div>
-          <div className="stat-box assists">
-            <div className="stat-icon">🤝</div>
-            <div className="stat-value">{stats.assists}</div>
-            <div className="stat-label">Assists</div>
-          </div>
-          <div className="stat-box steals">
-            <div className="stat-icon">👐</div>
-            <div className="stat-value">{stats.steals}</div>
-            <div className="stat-label">Steals</div>
-          </div>
-          <div className="stat-box blocks">
-            <div className="stat-icon">🚫</div>
-            <div className="stat-value">{stats.blocks}</div>
-            <div className="stat-label">Blocks</div>
-          </div>
-          <div className="stat-box rebounds">
-            <div className="stat-icon">↩️</div>
-            <div className="stat-value">{stats.rebounds}</div>
-            <div className="stat-label">Rebounds</div>
-          </div>
+          {statEntries.map(([key, value]) => (
+            <div key={key} className={`stat-box ${key}`}>
+              <div className="stat-icon">{STAT_ICONS[key] || '📈'}</div>
+              <div className="stat-value">{value}</div>
+              <div className="stat-label">{key.charAt(0).toUpperCase() + key.slice(1)}</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

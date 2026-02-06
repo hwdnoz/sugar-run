@@ -63,6 +63,11 @@ SCORING_RULES = [
 ]
 
 
+def _build_initial_stats():
+    """Build zeroed stats dict from SCORING_RULES (single source of truth)"""
+    return {rule.stat_name: 0 for rule in SCORING_RULES}
+
+
 def calculate_stats(detections, basketball_actions):
     """
     Calculate basketball stats from detected actions using scoring rules
@@ -74,13 +79,7 @@ def calculate_stats(detections, basketball_actions):
     Returns:
         tuple: (stats dict, detections with 'classified_as' added)
     """
-    stats = {
-        'points': 0,
-        'assists': 0,
-        'steals': 0,
-        'blocks': 0,
-        'rebounds': 0
-    }
+    stats = _build_initial_stats()
 
     for detection in detections:
         action_lower = detection['action'].lower()
