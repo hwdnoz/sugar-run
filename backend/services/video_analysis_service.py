@@ -11,8 +11,8 @@ from utils.storage import SessionStorage, FrameStorage
 logger = logging.getLogger(__name__)
 
 
-def process_clips(clips, fps, classifier, session_id):
-    """Process video clips and return detected actions"""
+def process_clips(clips, fps, classifier):
+    """Process video clips and return detected actions with frames"""
     basketball_actions = classifier.get_basketball_stats_mapping()
     detected_actions = []
 
@@ -24,22 +24,29 @@ def process_clips(clips, fps, classifier, session_id):
         if result.action and result.confidence > config.CONFIDENCE_THRESHOLD_DETECTION:
             timestamp = start_frame / fps
 
-            # Save middle frame
+            # Extract middle frame for later saving
             middle_frame_idx = len(clip_frames) // 2
             middle_frame_bgr = cv2.cvtColor(clip_frames[middle_frame_idx], cv2.COLOR_RGB2BGR)
-            frame_filename = FrameStorage.create(session_id, start_frame, middle_frame_bgr)
 
             detected_actions.append({
                 'frame': start_frame,
                 'timestamp': timestamp,
                 'action': result.action,
                 'confidence': result.confidence,
-                'frame_image': frame_filename,
+                'frame_data': middle_frame_bgr,  # Store frame data, not filename yet
             })
 
             logger.info(f"Detected '{result.action}' (confidence: {result.confidence:.2f}) at {timestamp:.2f}s")
 
     return detected_actions, basketball_actions
+
+
+def save_action_frames(session_id, detected_actions):
+    """Save action frames to storage and update detected_actions with filenames"""
+    for action in detected_actions:
+        frame_filename = FrameStorage.create(session_id, action['frame'], action['frame_data'])
+        action['frame_image'] = frame_filename
+        del action['frame_data']  # Remove frame data after saving
 
 
 def build_session_data(session_id, clips, fps, classifier, detected_actions, stats):
@@ -81,7 +88,9 @@ def analyze_video(video_path, classifier_type='videomae'):
     logger.info(f"Extracted {len(clips)} clips (FPS: {fps:.2f})")
 
     session_id = datetime.now().strftime('%Y%m%d_%H%M%S')
-    detected_actions, basketball_actions = process_clips(clips, fps, classifier, session_id)
+    detected_actions, basketball_actions = process_clips(clips, fps, classifier)
+
+    save_action_frames(session_id, detected_actions)
 
     stats, detected_actions = stats_calculation_service.calculate_stats(detected_actions, basketball_actions)
 
