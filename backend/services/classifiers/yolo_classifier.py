@@ -146,27 +146,27 @@ class YOLOBallTrackingClassifier(ActionClassifier):
             # Check for arc pattern
             mid_y = y_coords[len(y_coords)//2]
             if mid_y < y_coords[0] and mid_y < y_coords[-1]:
-                action = "shooting basketball"
+                action = "shooting"
                 confidence = min(0.9, 0.5 + abs(dy) * 2)
 
         # Dribbling: Repeated up-down motion
         elif y_direction_changes >= 2 and avg_y_vel > 0.02:
-            action = "dribbling basketball"
+            action = "dribbling"
             confidence = min(0.85, 0.4 + y_direction_changes * 0.15)
 
         # Passing: Horizontal movement with speed
         elif avg_x_vel > avg_y_vel * 1.5 and total_movement > 0.15:
-            action = "passing basketball"
+            action = "passing"
             confidence = min(0.8, 0.4 + total_movement * 2)
 
         # Catching: Ball present but minimal movement
         elif total_movement < 0.05 and len(valid_positions) > 5:
-            action = "catching basketball"
+            action = "catching"
             confidence = 0.6
 
         # Default: general basketball activity
         else:
-            action = "playing basketball"
+            action = "playing"
             confidence = 0.5
 
         return ClassificationResult(
@@ -214,10 +214,10 @@ class YOLOBallTrackingClassifier(ActionClassifier):
     def get_basketball_stats_mapping(self):
         """Override with YOLO-specific action keywords"""
         return {
-            'shooting': ['shooting basketball', 'throw', 'shot'],
-            'passing': ['passing basketball', 'pass'],
-            'dribbling': ['dribbling basketball', 'dribble'],
+            'shooting': ['shooting', 'throw', 'shot'],
+            'passing': ['passing', 'pass'],
+            'dribbling': ['dribbling', 'dribble'],
             'dunking': ['dunk', 'slam'],
             'blocking': ['block', 'defend'],
-            'catching': ['catching basketball', 'catch']
+            'catching': ['catching', 'catch']
         }
